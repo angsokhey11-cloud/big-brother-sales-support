@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>BIG BROTHER — Sales Support V1.1 Mobile</title>
+<title>BIG BROTHER — Sales Support V1.2 Product Search</title>
 <style>
   :root{
     --navy:#173f77;
@@ -256,6 +256,92 @@
     padding:8px 10px;
     background:#fff;
   }
+
+  .product-picker{
+    position:relative;
+    min-width:0;
+  }
+  .product-picker input{
+    width:100%;
+    min-height:42px;
+    border:1px solid #cdd9e7;
+    border-radius:8px;
+    padding:9px 38px 9px 10px;
+    color:var(--text);
+    background:#fff;
+    font-size:14px;
+  }
+  .product-picker-icon{
+    position:absolute;
+    right:11px;
+    top:50%;
+    transform:translateY(-50%);
+    color:#7d8fa2;
+    pointer-events:none;
+    font-size:15px;
+  }
+  .product-suggestions{
+    position:absolute;
+    left:0;
+    right:0;
+    top:calc(100% + 5px);
+    z-index:130;
+    max-height:310px;
+    overflow:auto;
+    border:1px solid #cbd8e7;
+    border-radius:10px;
+    background:#fff;
+    box-shadow:0 12px 30px rgba(23,63,119,.16);
+    padding:5px;
+  }
+  .product-suggestions[hidden]{display:none}
+  .product-suggestion{
+    width:100%;
+    min-height:50px;
+    border:0;
+    background:#fff;
+    color:var(--text);
+    border-radius:8px;
+    padding:8px 10px;
+    text-align:left;
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    gap:12px;
+  }
+  .product-suggestion:hover,
+  .product-suggestion:focus{
+    background:#eef5ff;
+    outline:none;
+  }
+  .product-suggestion strong{
+    display:block;
+    color:var(--navy);
+    font-size:13px;
+    line-height:1.25;
+  }
+  .product-suggestion small{
+    display:block;
+    margin-top:3px;
+    color:var(--muted);
+    font-size:10px;
+    line-height:1.25;
+  }
+  .product-suggestion .unit{
+    flex:0 0 auto;
+    border-radius:999px;
+    padding:4px 7px;
+    background:#f1f4f8;
+    color:#50677f;
+    font-size:9px;
+    font-weight:900;
+  }
+  .product-suggestions-empty{
+    padding:13px 10px;
+    color:var(--muted);
+    font-size:12px;
+    text-align:center;
+  }
   .line-table-wrap{overflow-x:auto}
   .line-table{
     width:100%;
@@ -493,7 +579,7 @@
       gap:9px;
     }
     .field input,.field select,.field textarea,
-    .product-toolbar select,.search-row input,.search-row select{
+    .product-toolbar select,.product-picker input,.search-row input,.search-row select{
       min-height:46px;
       font-size:16px;
     }
@@ -607,7 +693,7 @@
     }
     .modal-body{padding:10px}
     .loginbox{padding:16px}
-    .customer-suggestions{max-height:250px}
+    .customer-suggestions,.product-suggestions{max-height:250px}
   }
   @media(max-width:420px){
     .tabs{grid-template-columns:1fr}
@@ -709,7 +795,25 @@
       </div>
 
       <div class="product-toolbar">
-        <select id="calcProductChoice"></select>
+        <div class="product-picker" id="calcProductPicker">
+          <input
+            id="calcProductSearch"
+            type="search"
+            autocomplete="off"
+            inputmode="search"
+            placeholder="Type product name or code..."
+            aria-label="Search product"
+            aria-autocomplete="list"
+            aria-controls="calcProductSuggestions"
+          >
+          <span class="product-picker-icon">⌕</span>
+          <div
+            id="calcProductSuggestions"
+            class="product-suggestions"
+            role="listbox"
+            hidden
+          ></div>
+        </div>
         <button class="btn primary" type="button" id="calcAddProductBtn">＋ Add Product</button>
       </div>
 
@@ -800,7 +904,25 @@
       </div>
 
       <div class="product-toolbar">
-        <select id="deliveryProductChoice"></select>
+        <div class="product-picker" id="deliveryProductPicker">
+          <input
+            id="deliveryProductSearch"
+            type="search"
+            autocomplete="off"
+            inputmode="search"
+            placeholder="Type product name or code..."
+            aria-label="Search delivery product"
+            aria-autocomplete="list"
+            aria-controls="deliveryProductSuggestions"
+          >
+          <span class="product-picker-icon">⌕</span>
+          <div
+            id="deliveryProductSuggestions"
+            class="product-suggestions"
+            role="listbox"
+            hidden
+          ></div>
+        </div>
         <button class="btn primary" type="button" id="deliveryAddProductBtn">＋ Add Product</button>
       </div>
 
@@ -925,6 +1047,8 @@
   let calcLines = [];
   let calcDiscountUSD = 0;
   let calcSelectedCustomerKey = "";
+  let calcSelectedProductCode = "";
+  let deliverySelectedProductCode = "";
   let deliveryLines = [];
   let currentView = resolveInitialView();
 
@@ -1152,6 +1276,10 @@
     calcSelectedCustomerKey = "";
     $("calcCustomerSearch").value = "";
     $("calcCustomerSummary").innerHTML = "";
+    calcSelectedProductCode = "";
+    deliverySelectedProductCode = "";
+    $("calcProductSearch").value = "";
+    $("deliveryProductSearch").value = "";
     sessionStorage.removeItem(SESSION_KEY);
     updateSessionUI();
     renderAll();
@@ -1373,6 +1501,139 @@
     customerPriceCache[key] = result;
     cacheSet(PRICE_CACHE_PREFIX + encodeURIComponent(key), result);
     return result;
+  }
+
+  function productByCode(code){
+    const target = clean(code).toLowerCase();
+    if(!target) return null;
+    return products.find(product => product.code.toLowerCase() === target) || null;
+  }
+
+  function filteredProducts(term){
+    const query = clean(term).toLowerCase();
+
+    if(!query) return products.slice(0, 18);
+
+    return products.filter(product =>
+      [
+        product.name,
+        product.code,
+        product.unit,
+        product.barcode
+      ].some(value => clean(value).toLowerCase().includes(query))
+    ).slice(0, 18);
+  }
+
+  function productPickerElements(kind){
+    if(kind === "delivery"){
+      return {
+        input:$("deliveryProductSearch"),
+        box:$("deliveryProductSuggestions"),
+        picker:$("deliveryProductPicker")
+      };
+    }
+
+    return {
+      input:$("calcProductSearch"),
+      box:$("calcProductSuggestions"),
+      picker:$("calcProductPicker")
+    };
+  }
+
+  function hideProductSuggestions(kind){
+    const elements = productPickerElements(kind);
+    if(elements.box) elements.box.hidden = true;
+  }
+
+  function getSelectedProductCode(kind){
+    return kind === "delivery"
+      ? deliverySelectedProductCode
+      : calcSelectedProductCode;
+  }
+
+  function setSelectedProductCode(kind, code){
+    if(kind === "delivery"){
+      deliverySelectedProductCode = clean(code);
+    }else{
+      calcSelectedProductCode = clean(code);
+    }
+  }
+
+  function setProductPickerSelection(kind, product){
+    const elements = productPickerElements(kind);
+    if(!elements.input) return;
+
+    setSelectedProductCode(kind, product ? product.code : "");
+    elements.input.value = product ? product.name : "";
+    hideProductSuggestions(kind);
+  }
+
+  function renderProductSuggestions(kind){
+    const elements = productPickerElements(kind);
+    if(!elements.input || !elements.box) return;
+
+    const matches = filteredProducts(elements.input.value);
+
+    if(!matches.length){
+      elements.box.innerHTML =
+        '<div class="product-suggestions-empty">No product found.</div>';
+      elements.box.hidden = false;
+      return;
+    }
+
+    elements.box.innerHTML = matches.map(product => `
+      <button
+        type="button"
+        class="product-suggestion"
+        role="option"
+        data-code="${esc(product.code)}"
+      >
+        <span>
+          <strong>${esc(product.name)}</strong>
+          <small>${esc(product.code)}${product.barcode ? " · " + esc(product.barcode) : ""}</small>
+        </span>
+        <span class="unit">${esc(product.unit || "-")}</span>
+      </button>
+    `).join("");
+
+    elements.box.hidden = false;
+
+    elements.box.querySelectorAll(".product-suggestion").forEach(button => {
+      button.addEventListener("click", () => {
+        const product = productByCode(button.dataset.code);
+        if(product) setProductPickerSelection(kind, product);
+      });
+    });
+  }
+
+  function handleProductSearchInput(kind){
+    const elements = productPickerElements(kind);
+    if(!elements.input) return;
+
+    const selected = productByCode(getSelectedProductCode(kind));
+
+    if(
+      selected &&
+      clean(elements.input.value).toLowerCase() !== selected.name.toLowerCase()
+    ){
+      setSelectedProductCode(kind, "");
+    }
+
+    renderProductSuggestions(kind);
+  }
+
+  async function selectFirstProductSuggestion(kind){
+    const elements = productPickerElements(kind);
+    if(!elements.box) return false;
+
+    const first = elements.box.querySelector(".product-suggestion");
+    if(!first) return false;
+
+    const product = productByCode(first.dataset.code);
+    if(!product) return false;
+
+    setProductPickerSelection(kind, product);
+    return true;
   }
 
   function productSelectOptions(selectId){
@@ -1613,9 +1874,19 @@
   }
 
   async function addCalcProduct(){
-    const code = clean($("calcProductChoice").value);
-    const product = products.find(p => p.code === code);
-    if(!product) return;
+    let code = clean(calcSelectedProductCode);
+
+    if(!code){
+      const selected = await selectFirstProductSuggestion("calc");
+      if(selected) code = clean(calcSelectedProductCode);
+    }
+
+    const product = productByCode(code);
+    if(!product){
+      $("calcProductSearch").focus();
+      renderProductSuggestions("calc");
+      return;
+    }
 
     const price = await effectiveProductPrice(product);
 
@@ -1630,8 +1901,9 @@
       manualPrice:false
     });
 
-    $("calcProductChoice").value = "";
+    setProductPickerSelection("calc", null);
     renderCalcLines();
+    $("calcProductSearch").focus();
   }
 
   function renderCalcLines(){
@@ -1746,10 +2018,20 @@
     }
   }
 
-  function addDeliveryProduct(){
-    const code = clean($("deliveryProductChoice").value);
-    const product = products.find(p => p.code === code);
-    if(!product) return;
+  async function addDeliveryProduct(){
+    let code = clean(deliverySelectedProductCode);
+
+    if(!code){
+      const selected = await selectFirstProductSuggestion("delivery");
+      if(selected) code = clean(deliverySelectedProductCode);
+    }
+
+    const product = productByCode(code);
+    if(!product){
+      $("deliveryProductSearch").focus();
+      renderProductSuggestions("delivery");
+      return;
+    }
 
     deliveryLines.push({
       id:"DLITEM-" + Date.now() + "-" + Math.random().toString(36).slice(2,7),
@@ -1759,8 +2041,9 @@
       qty:0
     });
 
-    $("deliveryProductChoice").value = "";
+    setProductPickerSelection("delivery", null);
     renderDeliveryLines();
+    $("deliveryProductSearch").focus();
   }
 
   function renderDeliveryLines(){
@@ -2162,8 +2445,6 @@
 
     renderCalcLocationFilter();
     fillCustomerSelect("deliveryCustomer", deliveryValue);
-    productSelectOptions("calcProductChoice");
-    productSelectOptions("deliveryProductChoice");
     renderCustomerFilters();
     renderYourCustomers();
     renderCalcLines();
@@ -2213,6 +2494,33 @@
   document.addEventListener("click", event => {
     if(!$("calcCustomerPicker").contains(event.target)){
       hideCalcCustomerSuggestions();
+    }
+  });
+
+  $("calcProductSearch").addEventListener("input", () => handleProductSearchInput("calc"));
+  $("calcProductSearch").addEventListener("focus", () => renderProductSuggestions("calc"));
+  $("calcProductSearch").addEventListener("keydown", async event => {
+    if(event.key !== "Enter") return;
+    event.preventDefault();
+    const selected = await selectFirstProductSuggestion("calc");
+    if(selected) await addCalcProduct();
+  });
+
+  $("deliveryProductSearch").addEventListener("input", () => handleProductSearchInput("delivery"));
+  $("deliveryProductSearch").addEventListener("focus", () => renderProductSuggestions("delivery"));
+  $("deliveryProductSearch").addEventListener("keydown", async event => {
+    if(event.key !== "Enter") return;
+    event.preventDefault();
+    const selected = await selectFirstProductSuggestion("delivery");
+    if(selected) await addDeliveryProduct();
+  });
+
+  document.addEventListener("click", event => {
+    if(!$("calcProductPicker").contains(event.target)){
+      hideProductSuggestions("calc");
+    }
+    if(!$("deliveryProductPicker").contains(event.target)){
+      hideProductSuggestions("delivery");
     }
   });
 
