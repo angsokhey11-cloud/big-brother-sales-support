@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>BIG BROTHER — Sales Support V1.2 Product Search</title>
+<title>BIG BROTHER — Sales Support V1.3 Calculator Redesign</title>
 <style>
   :root{
     --navy:#173f77;
@@ -705,6 +705,522 @@
     .inline-input{width:100%!important}
     .customer-suggestion{align-items:flex-start}
   }
+
+  /* =========================================================
+     V1.3 CALCULATOR REDESIGN
+     ========================================================= */
+  .calc-shell{
+    display:grid;
+    gap:12px;
+  }
+  .calc-control-card,
+  .calc-products-card,
+  .calc-total-card{
+    background:#fff;
+    border:1px solid #dbe5f0;
+    border-radius:14px;
+    padding:14px;
+  }
+  .calc-primary-grid{
+    display:grid;
+    grid-template-columns:minmax(0,1.15fr) minmax(0,1.15fr) minmax(0,.85fr) minmax(0,1.25fr);
+    gap:10px;
+    align-items:end;
+  }
+  .calc-field-label{
+    display:block;
+    margin-bottom:6px;
+    color:#526b86;
+    font-size:11px;
+    font-weight:900;
+    text-transform:uppercase;
+    letter-spacing:.28px;
+  }
+  .calc-control-card select,
+  .calc-control-card input{
+    width:100%;
+    min-height:46px;
+    border:1px solid #cdd9e7;
+    border-radius:10px;
+    padding:10px 12px;
+    background:#fff;
+    color:var(--text);
+    font-size:14px;
+  }
+  .calc-currency-wrap{
+    display:grid;
+    grid-template-columns:1fr 1fr;
+    gap:7px;
+    padding:4px;
+    border:1px solid #d8e3ef;
+    border-radius:11px;
+    background:#f5f8fc;
+    min-height:46px;
+  }
+  .calc-currency-btn{
+    border:0;
+    border-radius:8px;
+    background:transparent;
+    color:#526b86;
+    font-weight:900;
+    min-height:36px;
+  }
+  .calc-currency-btn.active{
+    background:#1f67d8;
+    color:#fff;
+    box-shadow:0 4px 12px rgba(31,103,216,.2);
+  }
+  .calc-hidden-select{
+    position:absolute!important;
+    width:1px!important;
+    height:1px!important;
+    overflow:hidden!important;
+    clip:rect(0 0 0 0)!important;
+    clip-path:inset(50%)!important;
+    white-space:nowrap!important;
+    border:0!important;
+    padding:0!important;
+    margin:-1px!important;
+  }
+  .calc-rate-card{
+    min-height:46px;
+    border:1px solid #bfd3ef;
+    border-radius:11px;
+    background:linear-gradient(135deg,#f6faff,#edf5ff);
+    padding:9px 11px;
+  }
+  .calc-rate-top{
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    gap:8px;
+    margin-bottom:6px;
+  }
+  .calc-rate-title{
+    color:#234e87;
+    font-size:11px;
+    font-weight:900;
+  }
+  .calc-rate-fixed{
+    color:#1f67d8;
+    font-size:10px;
+    font-weight:900;
+    white-space:nowrap;
+  }
+  .calc-rate-row{
+    display:grid;
+    grid-template-columns:auto minmax(0,1fr);
+    gap:8px;
+    align-items:center;
+  }
+  .calc-rate-row span{
+    color:#1d4c85;
+    font-weight:900;
+    font-size:15px;
+  }
+  .calc-rate-row input{
+    min-height:42px;
+    border-color:#b8cee9;
+    font-size:18px;
+    font-weight:900;
+    color:#153f76;
+    padding:8px 10px;
+  }
+  .calc-status-compact{
+    margin-top:8px;
+    min-height:18px;
+    color:var(--muted);
+    font-size:11px;
+    line-height:1.4;
+  }
+
+  .calc-products-head{
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    gap:10px;
+    margin-bottom:10px;
+  }
+  .calc-products-head h2{
+    margin:0;
+    color:var(--navy);
+    font-size:17px;
+  }
+  .calc-product-count{
+    color:#5d738a;
+    font-size:11px;
+    font-weight:800;
+  }
+  .calc-product-search-row{
+    display:grid;
+    grid-template-columns:minmax(0,1fr) auto;
+    gap:8px;
+    margin-bottom:12px;
+  }
+  .calc-product-search-row .product-picker input{
+    min-height:46px;
+    font-size:14px;
+  }
+  .calc-product-search-row .btn{
+    min-height:46px;
+    padding-inline:16px;
+  }
+  .calc-product-list{
+    display:grid;
+    gap:7px;
+  }
+  .calc-product-empty{
+    border:1px dashed #ccd8e6;
+    border-radius:11px;
+    padding:28px 14px;
+    text-align:center;
+    color:var(--muted);
+    background:#fbfcfe;
+    font-size:12px;
+  }
+  .calc-product-row{
+    display:grid;
+    grid-template-columns:minmax(0,1fr) auto auto auto auto;
+    gap:10px;
+    align-items:center;
+    border:1px solid #dfe7f0;
+    border-radius:11px;
+    padding:9px 10px;
+    background:#fff;
+  }
+  .calc-product-main{
+    min-width:0;
+  }
+  .calc-product-main strong{
+    display:block;
+    color:#173f77;
+    font-size:13px;
+    line-height:1.3;
+  }
+  .calc-product-main small{
+    display:block;
+    margin-top:3px;
+    color:#7a8da1;
+    font-size:10px;
+  }
+  .calc-price-badge{
+    min-width:76px;
+    border-radius:9px;
+    background:#edf5ff;
+    color:#174d90;
+    padding:8px 9px;
+    text-align:right;
+    font-weight:900;
+    font-size:12px;
+    white-space:nowrap;
+  }
+  .calc-qty-stepper{
+    display:grid;
+    grid-template-columns:38px minmax(48px,auto) 38px;
+    align-items:center;
+    border:1px solid #d4deea;
+    border-radius:9px;
+    overflow:hidden;
+    background:#fff;
+  }
+  .calc-qty-stepper button{
+    min-height:38px;
+    border:0;
+    background:#f5f8fc;
+    color:#173f77;
+    font-size:18px;
+    font-weight:900;
+  }
+  .calc-qty-stepper button:active{
+    background:#e9f1fb;
+  }
+  .calc-qty-value{
+    min-height:38px;
+    border:0;
+    border-left:1px solid #e0e6ee;
+    border-right:1px solid #e0e6ee;
+    background:#fff;
+    color:#172b43;
+    font-weight:900;
+    text-align:center;
+    padding:0 8px;
+  }
+  .calc-line-total{
+    min-width:82px;
+    color:#173f77;
+    text-align:right;
+    font-weight:900;
+    white-space:nowrap;
+  }
+  .calc-delete-btn{
+    width:38px;
+    min-height:38px;
+    border:0;
+    border-radius:9px;
+    background:#fff0ef;
+    color:#d64037;
+    font-size:17px;
+  }
+
+  .calc-total-layout{
+    display:grid;
+    grid-template-columns:minmax(0,1fr) minmax(250px,.48fr);
+    gap:12px;
+    align-items:stretch;
+  }
+  .calc-discount-card,
+  .calc-grand-card{
+    border:1px solid #dce6f1;
+    border-radius:12px;
+    padding:13px;
+    background:#fff;
+  }
+  .calc-discount-row{
+    display:grid;
+    grid-template-columns:auto minmax(110px,190px);
+    align-items:center;
+    gap:12px;
+    justify-content:space-between;
+  }
+  .calc-discount-label{
+    display:flex;
+    align-items:center;
+    gap:8px;
+    color:#173f77;
+    font-weight:900;
+  }
+  .calc-discount-input-wrap{
+    display:grid;
+    grid-template-columns:auto minmax(0,1fr);
+    align-items:center;
+    gap:7px;
+  }
+  .calc-discount-symbol{
+    color:#234e87;
+    font-weight:900;
+  }
+  #calcDiscount{
+    width:100%;
+    min-height:42px;
+    border:1px solid #cdd9e7;
+    border-radius:9px;
+    padding:8px 10px;
+    text-align:right;
+    font-size:16px;
+    font-weight:800;
+  }
+  .calc-grand-card{
+    background:linear-gradient(135deg,#f6faff,#edf5ff);
+  }
+  .calc-grand-label{
+    color:#536b84;
+    font-size:11px;
+    font-weight:900;
+    text-transform:uppercase;
+    letter-spacing:.25px;
+  }
+  .calc-grand-value{
+    margin-top:4px;
+    color:#0e3f80;
+    font-size:28px;
+    font-weight:1000;
+    line-height:1.05;
+  }
+  .calc-grand-equivalent{
+    margin-top:5px;
+    color:#5c7188;
+    font-size:12px;
+    font-weight:800;
+  }
+  .calc-subtotal-line{
+    display:flex;
+    justify-content:space-between;
+    gap:10px;
+    margin-bottom:9px;
+    color:#60758b;
+    font-size:11px;
+  }
+  .calc-actions{
+    display:grid;
+    grid-template-columns:1fr 1fr;
+    gap:9px;
+    margin-top:12px;
+  }
+  .calc-actions .btn{
+    min-height:46px;
+  }
+  .calc-new-btn{
+    background:#139446!important;
+    color:#fff!important;
+  }
+
+  .qty-modal{
+    position:fixed;
+    inset:0;
+    z-index:9200;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    padding:18px;
+    background:rgba(11,30,54,.66);
+  }
+  .qty-modal.hidden{display:none}
+  .qty-dialog{
+    width:min(410px,100%);
+    border-radius:16px;
+    background:#fff;
+    overflow:hidden;
+    box-shadow:0 22px 70px rgba(0,0,0,.28);
+  }
+  .qty-dialog-head{
+    padding:15px 16px 10px;
+  }
+  .qty-dialog-head small{
+    display:block;
+    color:#70849a;
+    font-size:10px;
+    font-weight:900;
+    text-transform:uppercase;
+    letter-spacing:.3px;
+  }
+  .qty-dialog-head h3{
+    margin:4px 0 0;
+    color:#173f77;
+    font-size:18px;
+  }
+  .qty-dialog-meta{
+    padding:0 16px 12px;
+    color:#70849a;
+    font-size:11px;
+  }
+  .qty-dialog-body{
+    padding:0 16px 16px;
+  }
+  .qty-entry{
+    display:grid;
+    grid-template-columns:48px minmax(0,1fr) 48px;
+    gap:8px;
+    align-items:center;
+  }
+  .qty-entry button{
+    min-height:50px;
+    border:1px solid #cfdbea;
+    border-radius:10px;
+    background:#f5f8fc;
+    color:#173f77;
+    font-size:24px;
+    font-weight:900;
+  }
+  .qty-entry input{
+    width:100%;
+    min-height:54px;
+    border:2px solid #5f95dd;
+    border-radius:11px;
+    text-align:center;
+    font-size:24px;
+    font-weight:1000;
+    color:#173f77;
+  }
+  .qty-dialog-actions{
+    display:grid;
+    grid-template-columns:1fr 1fr;
+    gap:8px;
+    padding:13px 16px 16px;
+    border-top:1px solid #edf1f5;
+  }
+
+  @media(max-width:900px){
+    .calc-primary-grid{
+      grid-template-columns:1fr 1fr;
+    }
+    .calc-total-layout{
+      grid-template-columns:1fr;
+    }
+  }
+  @media(max-width:700px){
+    .calc-shell{
+      gap:9px;
+    }
+    .calc-control-card,
+    .calc-products-card,
+    .calc-total-card{
+      border-radius:12px;
+      padding:11px;
+    }
+    .calc-primary-grid{
+      grid-template-columns:1fr;
+      gap:9px;
+    }
+    .calc-control-card select,
+    .calc-control-card input,
+    .calc-product-search-row .product-picker input{
+      min-height:48px;
+      font-size:16px;
+    }
+    .calc-rate-card{
+      padding:10px 11px;
+    }
+    .calc-rate-row input{
+      min-height:48px;
+      font-size:20px;
+    }
+    .calc-product-search-row{
+      grid-template-columns:minmax(0,1fr) auto;
+    }
+    .calc-product-search-row .btn{
+      min-width:118px;
+      padding-inline:12px;
+      font-size:12px;
+    }
+    .calc-product-row{
+      grid-template-columns:minmax(0,1fr) auto;
+      gap:7px 9px;
+      padding:10px;
+    }
+    .calc-product-main{
+      grid-column:1 / -1;
+    }
+    .calc-price-badge{
+      min-width:0;
+      text-align:left;
+    }
+    .calc-qty-stepper{
+      justify-self:end;
+    }
+    .calc-line-total{
+      min-width:0;
+      text-align:left;
+      font-size:13px;
+    }
+    .calc-delete-btn{
+      justify-self:end;
+    }
+    .calc-total-layout{
+      gap:9px;
+    }
+    .calc-discount-row{
+      grid-template-columns:1fr;
+      gap:8px;
+    }
+    .calc-discount-input-wrap{
+      grid-template-columns:auto minmax(0,1fr);
+    }
+    .calc-grand-value{
+      font-size:26px;
+    }
+    .calc-actions{
+      grid-template-columns:1fr;
+    }
+  }
+  @media(max-width:390px){
+    .calc-product-search-row{
+      grid-template-columns:1fr;
+    }
+    .calc-product-search-row .btn{
+      width:100%;
+    }
+  }
+
   body.embed .tabs{display:none}
   body.embed .app{width:100%;max-width:none}
 </style>
@@ -714,7 +1230,7 @@
 <div class="app" id="app">
   <div class="topbar">
     <div class="title">
-      <h1>Sales Support</h1>
+      <h1 id="pageTitle">Sales Support</h1>
       <p id="pageSubtitle">Salesman tools for price checking, delivery requests and customer information.</p>
     </div>
     <div class="session">
@@ -732,126 +1248,160 @@
   </div>
 
   <section class="view" id="view-calculator">
-    <div class="notice">
-      🧮 <strong>CALCULATION ONLY.</strong> This tool does not create an invoice, save a sale, create receivable, record payment or change stock.
-    </div>
+    <div class="calc-shell">
 
-    <div class="card">
-      <div class="section-head">
-        <h2>Price Calculator</h2>
-        <span class="badge blue">NO SAVE</span>
+      <div class="calc-control-card">
+        <div class="calc-primary-grid">
+
+          <div>
+            <label class="calc-field-label" for="calcLocation">Location</label>
+            <select id="calcLocation">
+              <option value="">All Your Locations</option>
+            </select>
+          </div>
+
+          <div>
+            <label class="calc-field-label" for="calcCustomerSearch">Customer Name</label>
+            <div class="customer-picker" id="calcCustomerPicker">
+              <input
+                id="calcCustomerSearch"
+                type="search"
+                autocomplete="off"
+                inputmode="search"
+                placeholder="Search customer name or ID..."
+                aria-label="Search customer name"
+                aria-autocomplete="list"
+                aria-controls="calcCustomerSuggestions"
+              >
+              <span class="customer-picker-icon">⌕</span>
+              <div
+                id="calcCustomerSuggestions"
+                class="customer-suggestions"
+                role="listbox"
+                hidden
+              ></div>
+            </div>
+          </div>
+
+          <div>
+            <span class="calc-field-label">Currency</span>
+            <div class="calc-currency-wrap" role="group" aria-label="Calculator currency">
+              <button class="calc-currency-btn active" type="button" id="calcCurrencyUSD">USD</button>
+              <button class="calc-currency-btn" type="button" id="calcCurrencyKHR">KHR</button>
+            </div>
+            <select id="calcCurrency" class="calc-hidden-select" tabindex="-1" aria-hidden="true">
+              <option value="USD">USD</option>
+              <option value="KHR">KHR</option>
+            </select>
+          </div>
+
+          <div>
+            <span class="calc-field-label">Exchange Calculation</span>
+            <div class="calc-rate-card">
+              <div class="calc-rate-top">
+                <span class="calc-rate-title">1 USD = KHR</span>
+                <span class="calc-rate-fixed">📌 Fixed until you change</span>
+              </div>
+              <div class="calc-rate-row">
+                <span>⇄</span>
+                <input
+                  id="calcRate"
+                  type="number"
+                  min="1"
+                  step="1"
+                  inputmode="decimal"
+                  value="4060"
+                  aria-label="USD to KHR exchange rate"
+                >
+              </div>
+            </div>
+          </div>
+
+        </div>
+
+        <div id="calcCustomerSummary" hidden></div>
+        <div id="calcStatus" class="calc-status-compact">Sign in to load your customers.</div>
       </div>
 
-      <div class="grid4">
-        <div class="field">
-          <label>Location</label>
-          <select id="calcLocation">
-            <option value="">All Your Locations</option>
-          </select>
+      <div class="calc-products-card">
+        <div class="calc-products-head">
+          <div>
+            <h2>📦 Products</h2>
+            <div class="calc-product-count" id="calcProductCount">0 items</div>
+          </div>
         </div>
-        <div class="field">
-          <label>Customer Name</label>
-          <div class="customer-picker" id="calcCustomerPicker">
+
+        <div class="calc-product-search-row">
+          <div class="product-picker" id="calcProductPicker">
             <input
-              id="calcCustomerSearch"
+              id="calcProductSearch"
               type="search"
               autocomplete="off"
               inputmode="search"
-              placeholder="Type customer name or phone..."
-              aria-label="Search customer name"
+              placeholder="Search product name or code..."
+              aria-label="Search product"
               aria-autocomplete="list"
-              aria-controls="calcCustomerSuggestions"
+              aria-controls="calcProductSuggestions"
             >
-            <span class="customer-picker-icon">⌕</span>
+            <span class="product-picker-icon">⌕</span>
             <div
-              id="calcCustomerSuggestions"
-              class="customer-suggestions"
+              id="calcProductSuggestions"
+              class="product-suggestions"
               role="listbox"
               hidden
             ></div>
           </div>
+          <button class="btn primary" type="button" id="calcAddProductBtn">＋ Add Product</button>
         </div>
-        <div class="field">
-          <label>Currency</label>
-          <select id="calcCurrency">
-            <option value="USD">USD</option>
-            <option value="KHR">KHR</option>
-          </select>
+
+        <div id="calcLines" class="calc-product-list"></div>
+      </div>
+
+      <div class="calc-total-card">
+        <div class="calc-total-layout">
+
+          <div class="calc-discount-card">
+            <div class="calc-subtotal-line">
+              <span>Subtotal</span>
+              <strong id="calcSubtotal">$0.00</strong>
+            </div>
+            <div class="calc-discount-row">
+              <div class="calc-discount-label">
+                <span>🏷️</span>
+                <span>Discount</span>
+              </div>
+              <div class="calc-discount-input-wrap">
+                <span class="calc-discount-symbol" id="calcDiscountSymbol">$</span>
+                <input
+                  id="calcDiscount"
+                  type="number"
+                  min="0"
+                  value="0"
+                  inputmode="decimal"
+                  aria-label="Calculator discount"
+                >
+              </div>
+            </div>
+          </div>
+
+          <div class="calc-grand-card">
+            <div class="calc-grand-label">Grand Total</div>
+            <div class="calc-grand-value" id="calcGrandTotal">$0.00</div>
+            <div class="calc-grand-equivalent" id="calcEquivalent">≈ KHR 0</div>
+            <strong id="calcUsdEquivalent" hidden>$0.00</strong>
+          </div>
+
         </div>
-        <div class="field">
-          <label>Exchange Rate</label>
-          <input id="calcRate" type="number" min="1" step="1" inputmode="decimal" value="4060">
+
+        <div class="calc-actions">
+          <button class="btn danger" type="button" id="calcClearBtn">🗑 Clear All</button>
+          <button class="btn calc-new-btn" type="button" id="calcNewBtn">🧮 New Calculation</button>
         </div>
       </div>
 
-      <div id="calcCustomerSummary" class="customer-summary"></div>
-      <div id="calcStatus" class="status-line">Sign in to load your customers.</div>
-    </div>
-
-    <div class="card">
-      <div class="section-head">
-        <h3>Products</h3>
-        <button class="btn secondary small" type="button" id="calcClearBtn">Clear</button>
-      </div>
-
-      <div class="product-toolbar">
-        <div class="product-picker" id="calcProductPicker">
-          <input
-            id="calcProductSearch"
-            type="search"
-            autocomplete="off"
-            inputmode="search"
-            placeholder="Type product name or code..."
-            aria-label="Search product"
-            aria-autocomplete="list"
-            aria-controls="calcProductSuggestions"
-          >
-          <span class="product-picker-icon">⌕</span>
-          <div
-            id="calcProductSuggestions"
-            class="product-suggestions"
-            role="listbox"
-            hidden
-          ></div>
-        </div>
-        <button class="btn primary" type="button" id="calcAddProductBtn">＋ Add Product</button>
-      </div>
-
-      <div class="line-table-wrap">
-        <table class="line-table">
-          <thead>
-            <tr>
-              <th>Product</th>
-              <th style="width:95px">Qty</th>
-              <th style="width:130px">Price</th>
-              <th style="width:130px" class="money">Total</th>
-              <th style="width:55px"></th>
-            </tr>
-          </thead>
-          <tbody id="calcLines"></tbody>
-        </table>
-      </div>
-
-      <div class="total-box">
-        <div class="total-row">
-          <span>Subtotal</span>
-          <strong id="calcSubtotal">$0.00</strong>
-        </div>
-        <div class="total-row">
-          <span>Discount</span>
-          <input class="inline-input" id="calcDiscount" type="number" min="0" value="0" inputmode="decimal">
-        </div>
-        <div class="total-row grand">
-          <span>Grand Total</span>
-          <strong id="calcGrandTotal">$0.00</strong>
-        </div>
-        <div class="total-row">
-          <span>USD Equivalent</span>
-          <strong id="calcUsdEquivalent">$0.00</strong>
-        </div>
-      </div>
     </div>
   </section>
+
 
   <section class="view" id="view-request-delivery">
     <div class="notice green">
@@ -994,6 +1544,38 @@
   </form>
 </div>
 
+
+<div class="qty-modal hidden" id="calcQtyModal">
+  <form class="qty-dialog" id="calcQtyForm">
+    <div class="qty-dialog-head">
+      <small>Quantity</small>
+      <h3 id="calcQtyProductName">Product</h3>
+    </div>
+    <div class="qty-dialog-meta" id="calcQtyProductMeta"></div>
+    <div class="qty-dialog-body">
+      <div class="qty-entry">
+        <button type="button" id="calcQtyMinus" aria-label="Decrease quantity">−</button>
+        <input
+          id="calcQtyInput"
+          type="number"
+          min="0.01"
+          step="0.01"
+          inputmode="decimal"
+          value="1"
+          required
+          aria-label="Quantity"
+        >
+        <button type="button" id="calcQtyPlus" aria-label="Increase quantity">＋</button>
+      </div>
+      <div class="status-line" id="calcQtyStatus"></div>
+    </div>
+    <div class="qty-dialog-actions">
+      <button class="btn secondary" type="button" id="calcQtyCancel">Cancel</button>
+      <button class="btn primary" type="submit" id="calcQtyConfirm">Add Product</button>
+    </div>
+  </form>
+</div>
+
 <div class="modal hidden" id="deliveryDetailModal">
   <div class="modal-card">
     <div class="modal-head">
@@ -1021,6 +1603,7 @@
   const CACHE_AGE_PRODUCTS = 12 * 60 * 60 * 1000;
   const CACHE_AGE_CUSTOMERS = 60 * 60 * 1000;
   const CACHE_AGE_PRICES = 6 * 60 * 60 * 1000;
+  const CALC_RATE_KEY = "bb_sales_support_calc_exchange_rate_v1";
 
   const $ = id => document.getElementById(id);
   const clean = value => String(value == null ? "" : value).trim();
@@ -1048,6 +1631,7 @@
   let calcDiscountUSD = 0;
   let calcSelectedCustomerKey = "";
   let calcSelectedProductCode = "";
+  let pendingCalcProduct = null;
   let deliverySelectedProductCode = "";
   let deliveryLines = [];
   let currentView = resolveInitialView();
@@ -1873,6 +2457,125 @@
     }
   }
 
+  function loadCalcRatePreference(){
+    let saved = 0;
+    try{
+      saved = num(localStorage.getItem(CALC_RATE_KEY));
+    }catch(_){}
+
+    if(saved > 0){
+      $("calcRate").value = String(saved);
+    }
+  }
+
+  function persistCalcRate(){
+    const rate = Math.max(1, num($("calcRate").value) || 4060);
+    $("calcRate").value = String(rate);
+
+    try{
+      localStorage.setItem(CALC_RATE_KEY, String(rate));
+    }catch(_){}
+
+    calculateTotals();
+  }
+
+  function setCalcCurrency(currency){
+    const next = currency === "KHR" ? "KHR" : "USD";
+    $("calcCurrency").value = next;
+    handleCalcCurrencyChange();
+  }
+
+  function openCalcQtyModal(product, price){
+    if(!product) return;
+
+    const existing = calcLines.find(
+      line => line.productCode.toLowerCase() === product.code.toLowerCase()
+    );
+
+    pendingCalcProduct = {
+      product:product,
+      price:num(price),
+      existingId:existing ? existing.id : ""
+    };
+
+    $("calcQtyProductName").textContent = product.name;
+    $("calcQtyProductMeta").textContent =
+      [product.code, product.unit, formatMoney(usdToDisplay(price), calcCurrency())]
+        .filter(Boolean)
+        .join(" · ");
+
+    $("calcQtyInput").value = existing && existing.qty > 0
+      ? String(existing.qty)
+      : "1";
+
+    $("calcQtyConfirm").textContent = existing ? "Update Quantity" : "Add Product";
+    $("calcQtyStatus").textContent = "";
+    $("calcQtyModal").classList.remove("hidden");
+
+    setTimeout(() => {
+      $("calcQtyInput").focus();
+      $("calcQtyInput").select();
+    }, 30);
+  }
+
+  function closeCalcQtyModal(){
+    pendingCalcProduct = null;
+    $("calcQtyModal").classList.add("hidden");
+    $("calcQtyStatus").textContent = "";
+  }
+
+  function adjustCalcQty(delta){
+    const input = $("calcQtyInput");
+    const current = Math.max(0, num(input.value));
+    const next = Math.max(0.01, current + delta);
+    input.value = Number.isInteger(next) ? String(next) : String(Number(next.toFixed(2)));
+    input.focus();
+  }
+
+  function confirmCalcQty(event){
+    event.preventDefault();
+
+    if(!pendingCalcProduct || !pendingCalcProduct.product){
+      closeCalcQtyModal();
+      return;
+    }
+
+    const qty = num($("calcQtyInput").value);
+    if(!(qty > 0)){
+      $("calcQtyStatus").textContent = "Quantity must be greater than zero.";
+      $("calcQtyStatus").style.color = "#c0392b";
+      $("calcQtyInput").focus();
+      return;
+    }
+
+    const product = pendingCalcProduct.product;
+    const existing = pendingCalcProduct.existingId
+      ? calcLines.find(line => line.id === pendingCalcProduct.existingId)
+      : null;
+
+    if(existing){
+      existing.qty = qty;
+      existing.usdPrice = pendingCalcProduct.price;
+      existing.defaultUsdPrice = pendingCalcProduct.price;
+    }else{
+      calcLines.push({
+        id:"CALC-" + Date.now() + "-" + Math.random().toString(36).slice(2,7),
+        productCode:product.code,
+        productName:product.name,
+        unit:product.unit,
+        qty:qty,
+        usdPrice:pendingCalcProduct.price,
+        defaultUsdPrice:pendingCalcProduct.price,
+        manualPrice:false
+      });
+    }
+
+    setProductPickerSelection("calc", null);
+    closeCalcQtyModal();
+    renderCalcLines();
+    $("calcProductSearch").focus();
+  }
+
   async function addCalcProduct(){
     let code = clean(calcSelectedProductCode);
 
@@ -1890,66 +2593,73 @@
 
     const price = await effectiveProductPrice(product);
 
-    calcLines.push({
-      id:"CALC-" + Date.now() + "-" + Math.random().toString(36).slice(2,7),
-      productCode:product.code,
-      productName:product.name,
-      unit:product.unit,
-      qty:0,
-      usdPrice:price,
-      defaultUsdPrice:price,
-      manualPrice:false
-    });
-
-    setProductPickerSelection("calc", null);
-    renderCalcLines();
-    $("calcProductSearch").focus();
+    // V1.3: immediately ask the salesman for quantity.
+    openCalcQtyModal(product, price);
   }
 
   function renderCalcLines(){
     const body = $("calcLines");
     const currency = calcCurrency();
 
+    $("calcProductCount").textContent =
+      calcLines.length + " item" + (calcLines.length === 1 ? "" : "s");
+
     if(!calcLines.length){
-      body.innerHTML = '<tr><td colspan="5" class="empty">Add products to calculate a total.</td></tr>';
+      body.innerHTML =
+        '<div class="calc-product-empty">No products added yet.<br>Search a product above and tap <strong>Add Product</strong>.</div>';
       calculateTotals();
       return;
     }
 
-    body.innerHTML = calcLines.map(line => `
-      <tr data-id="${esc(line.id)}">
-        <td data-label="Product">
-          <strong>${esc(line.productName)}</strong>
-          <div class="muted">${esc(line.productCode)}${line.unit ? " · " + esc(line.unit) : ""}</div>
-        </td>
-        <td data-label="Qty">
-          <input class="calc-qty" type="number" min="0" step="0.01" inputmode="decimal" value="${line.qty || ""}" placeholder="0">
-        </td>
-        <td data-label="Price">
-          <input class="calc-price" type="number" min="0" step="${currency === "KHR" ? "1" : "0.01"}" inputmode="decimal" value="${usdToDisplay(line.usdPrice).toFixed(currency === "KHR" ? 0 : 2)}">
-          <div class="muted">${line.manualPrice ? "Manual" : "Customer price"}</div>
-        </td>
-        <td data-label="Total" class="money calc-line-total">${formatMoney(line.qty * usdToDisplay(line.usdPrice), currency)}</td>
-        <td data-label="Remove"><button class="btn danger small calc-remove" type="button">Remove</button></td>
-      </tr>
+    body.innerHTML = calcLines.map((line,index) => `
+      <div class="calc-product-row" data-id="${esc(line.id)}">
+        <div class="calc-product-main">
+          <strong>${index + 1}. ${esc(line.productName)}</strong>
+          <small>${esc(line.productCode)}${line.unit ? " · " + esc(line.unit) : ""}</small>
+        </div>
+
+        <div class="calc-price-badge">
+          ${formatMoney(usdToDisplay(line.usdPrice), currency)}
+        </div>
+
+        <div class="calc-qty-stepper" aria-label="Quantity controls">
+          <button class="calc-qty-minus" type="button" aria-label="Decrease quantity">−</button>
+          <button class="calc-qty-value" type="button" aria-label="Edit quantity">${num(line.qty).toLocaleString("en-US")}</button>
+          <button class="calc-qty-plus" type="button" aria-label="Increase quantity">＋</button>
+        </div>
+
+        <div class="calc-line-total">
+          ${formatMoney(num(line.qty) * usdToDisplay(line.usdPrice), currency)}
+        </div>
+
+        <button class="calc-delete-btn" type="button" aria-label="Remove ${esc(line.productName)}">🗑</button>
+      </div>
     `).join("");
 
-    body.querySelectorAll("tr[data-id]").forEach(row => {
+    body.querySelectorAll(".calc-product-row").forEach(row => {
       const line = calcLines.find(x => x.id === row.dataset.id);
       if(!line) return;
 
-      row.querySelector(".calc-qty").addEventListener("input", e => {
-        line.qty = Math.max(0, num(e.target.value));
-        calculateTotals();
+      row.querySelector(".calc-qty-minus").addEventListener("click", () => {
+        line.qty = Math.max(0.01, num(line.qty) - 1);
+        renderCalcLines();
       });
 
-      row.querySelector(".calc-price").addEventListener("input", e => {
-        line.usdPrice = Math.max(0, displayToUsd(e.target.value));
-        line.manualPrice = true;
-        calculateTotals();
+      row.querySelector(".calc-qty-plus").addEventListener("click", () => {
+        line.qty = Math.max(0.01, num(line.qty) + 1);
+        renderCalcLines();
       });
 
-      row.querySelector(".calc-remove").addEventListener("click", () => {
+      row.querySelector(".calc-qty-value").addEventListener("click", () => {
+        const product = productByCode(line.productCode) || {
+          code:line.productCode,
+          name:line.productName,
+          unit:line.unit
+        };
+        openCalcQtyModal(product, line.usdPrice);
+      });
+
+      row.querySelector(".calc-delete-btn").addEventListener("click", () => {
         calcLines = calcLines.filter(x => x.id !== line.id);
         renderCalcLines();
       });
@@ -1965,36 +2675,68 @@
 
     calcLines.forEach(line => {
       subtotalUSD += Math.max(0,num(line.qty)) * Math.max(0,num(line.usdPrice));
-      const row = $("calcLines").querySelector(`tr[data-id="${CSS.escape(line.id)}"]`);
-      if(row){
-        const displayTotal = line.qty * usdToDisplay(line.usdPrice);
-        const totalCell = row.querySelector(".calc-line-total");
-        if(totalCell) totalCell.textContent = formatMoney(displayTotal, currency);
-      }
     });
 
-    const subtotalDisplay = currency === "KHR" ? subtotalUSD * rate : subtotalUSD;
     const grandUSD = Math.max(0, subtotalUSD - calcDiscountUSD);
+    const subtotalDisplay = currency === "KHR" ? subtotalUSD * rate : subtotalUSD;
     const grandDisplay = currency === "KHR" ? grandUSD * rate : grandUSD;
 
     $("calcSubtotal").textContent = formatMoney(subtotalDisplay, currency);
     $("calcGrandTotal").textContent = formatMoney(grandDisplay, currency);
     $("calcUsdEquivalent").textContent = formatMoney(grandUSD, "USD");
+
+    if(currency === "USD"){
+      $("calcEquivalent").textContent =
+        "≈ KHR " + Math.round(grandUSD * rate).toLocaleString("en-US");
+    }else{
+      $("calcEquivalent").textContent =
+        "≈ USD " + formatMoney(grandUSD, "USD");
+    }
   }
 
   function handleCalcCurrencyChange(){
     const currency = calcCurrency();
-    $("calcRate").disabled = currency !== "KHR";
+
+    $("calcCurrencyUSD").classList.toggle("active", currency === "USD");
+    $("calcCurrencyKHR").classList.toggle("active", currency === "KHR");
+
+    // Exchange rate remains editable in both currencies.
+    $("calcRate").disabled = false;
+
+    $("calcDiscountSymbol").textContent = currency === "KHR" ? "៛" : "$";
     $("calcDiscount").step = currency === "KHR" ? "1" : "0.01";
-    $("calcDiscount").value = usdToDisplay(calcDiscountUSD).toFixed(currency === "KHR" ? 0 : 2);
+    $("calcDiscount").value =
+      usdToDisplay(calcDiscountUSD).toFixed(currency === "KHR" ? 0 : 2);
+
+    renderCalcLines();
+  }
+
+  function newCalculation(){
+    calcLines = [];
+    calcDiscountUSD = 0;
+    calcSelectedProductCode = "";
+    $("calcProductSearch").value = "";
+    $("calcDiscount").value = "0";
     renderCalcLines();
   }
 
   function clearCalculator(){
-    calcLines = [];
-    calcDiscountUSD = 0;
-    $("calcDiscount").value = "0";
-    renderCalcLines();
+    newCalculation();
+
+    calcSelectedCustomerKey = "";
+    $("calcCustomerSearch").value = "";
+    $("calcCustomerSummary").innerHTML = "";
+
+    const locations = profile?.locations || [];
+    $("calcLocation").value = locations.length === 1
+      ? locations[0].locationCode
+      : "";
+
+    showStatus(
+      "calcStatus",
+      "Choose a location, then search a customer name.",
+      false
+    );
   }
 
   /* =========================================================
@@ -2421,12 +3163,21 @@
       button.classList.toggle("active", button.dataset.view === view);
     });
 
+    const titles = {
+      "calculator":"Sales Support Calculator",
+      "request-delivery":"Request Delivery",
+      "your-customer":"Your Customer",
+      "successful-delivery":"Successful Delivery"
+    };
+
     const subtitles = {
-      "calculator":"Choose a location, search customer name, and verify customer-specific prices.",
+      "calculator":"Quickly calculate products and totals for your customer.",
       "request-delivery":"Create a physical delivery task for the Delivery team.",
       "your-customer":"Read-only customers from your assigned Location Control.",
       "successful-delivery":"Review completed physical delivery requests."
     };
+
+    $("pageTitle").textContent = titles[view];
     $("pageSubtitle").textContent = subtitles[view];
 
     if(updateUrl && !embed){
@@ -2526,13 +3277,27 @@
 
   $("calcAddProductBtn").addEventListener("click", addCalcProduct);
   $("calcClearBtn").addEventListener("click", clearCalculator);
+  $("calcNewBtn").addEventListener("click", newCalculation);
+
+  $("calcCurrencyUSD").addEventListener("click", () => setCalcCurrency("USD"));
+  $("calcCurrencyKHR").addEventListener("click", () => setCalcCurrency("KHR"));
   $("calcCurrency").addEventListener("change", handleCalcCurrencyChange);
-  $("calcRate").addEventListener("input", () => {
-    if(calcCurrency() === "KHR") renderCalcLines();
-  });
+
+  $("calcRate").addEventListener("input", calculateTotals);
+  $("calcRate").addEventListener("change", persistCalcRate);
+  $("calcRate").addEventListener("blur", persistCalcRate);
+
   $("calcDiscount").addEventListener("input", e => {
     calcDiscountUSD = Math.max(0, displayToUsd(e.target.value));
     calculateTotals();
+  });
+
+  $("calcQtyForm").addEventListener("submit", confirmCalcQty);
+  $("calcQtyCancel").addEventListener("click", closeCalcQtyModal);
+  $("calcQtyMinus").addEventListener("click", () => adjustCalcQty(-1));
+  $("calcQtyPlus").addEventListener("click", () => adjustCalcQty(1));
+  $("calcQtyModal").addEventListener("click", event => {
+    if(event.target === $("calcQtyModal")) closeCalcQtyModal();
   });
 
   $("deliveryCustomer").addEventListener("change", selectDeliveryCustomer);
@@ -2553,6 +3318,7 @@
   });
 
   setToday();
+  loadCalcRatePreference();
   handleCalcCurrencyChange();
   setView(currentView, false);
   restoreSession();
