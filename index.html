@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>BIG BROTHER — Sales Support V1.5 Editable Price</title>
+<title>BIG BROTHER — Sales Support V1.6 Public Fast Calculator</title>
 <style>
   :root{
     --navy:#173f77;
@@ -1251,6 +1251,26 @@
 
   body.embed .tabs{display:none}
   body.embed .app{width:100%;max-width:none}
+
+  /* =========================================================
+     V1.6 Public mode + calculator price prompt
+     ========================================================= */
+  body.public-mode #loginOverlay{display:none !important;}
+  .public-pill{
+    background:#eaf4ff;
+    color:#1c5ca8;
+  }
+  #calcPriceModal .qty-dialog-meta{
+    margin-bottom:10px;
+  }
+  #calcPriceLabel{
+    display:block;
+    margin:0 0 8px;
+    color:var(--navy);
+    font-weight:800;
+    font-size:12px;
+  }
+
 </style>
 </head>
 <body>
@@ -1355,7 +1375,7 @@
         <div class="calc-products-head">
           <div>
             <h2>📦 Products</h2>
-            <div class="calc-product-count" id="calcProductCount">0 items · select product → enter QTY</div>
+            <div class="calc-product-count" id="calcProductCount">0 items · type product → enter QTY → enter price if needed</div>
           </div>
         </div>
 
@@ -1603,6 +1623,38 @@
   </form>
 </div>
 
+
+<div class="qty-modal hidden" id="calcPriceModal">
+  <form class="qty-dialog" id="calcPriceForm">
+    <div class="qty-dialog-head">
+      <small>Price</small>
+      <h3 id="calcPriceProductName">Product</h3>
+    </div>
+    <div class="qty-dialog-meta" id="calcPriceProductMeta"></div>
+    <div class="qty-dialog-body">
+      <div class="field" style="margin:0">
+        <label id="calcPriceLabel" for="calcPriceInput">Enter selling price</label>
+        <input
+          id="calcPriceInput"
+          type="number"
+          min="0"
+          step="0.01"
+          inputmode="decimal"
+          value="0"
+          required
+          aria-label="Product price"
+          style="min-height:54px;font-size:24px;font-weight:900;text-align:center"
+        >
+      </div>
+      <div class="status-line" id="calcPriceStatus"></div>
+    </div>
+    <div class="qty-dialog-actions">
+      <button class="btn secondary" type="button" id="calcPriceCancel">Cancel</button>
+      <button class="btn primary" type="submit" id="calcPriceConfirm">Add Product</button>
+    </div>
+  </form>
+</div>
+
 <div class="modal hidden" id="deliveryDetailModal">
   <div class="modal-card">
     <div class="modal-head">
@@ -1631,6 +1683,7 @@
   const CACHE_AGE_CUSTOMERS = 60 * 60 * 1000;
   const CACHE_AGE_PRICES = 6 * 60 * 60 * 1000;
   const CALC_RATE_KEY = "bb_sales_support_calc_exchange_rate_v1";
+  const PUBLIC_LOCATIONS_CACHE_KEY = "bb_sales_support_public_locations_v1";
 
   const $ = id => document.getElementById(id);
   const clean = value => String(value == null ? "" : value).trim();
@@ -1659,6 +1712,7 @@
   let calcSelectedCustomerKey = "";
   let calcSelectedProductCode = "";
   let pendingCalcProduct = null;
+  let pendingCalcPriceContext = null;
   let deliverySelectedProductCode = "";
   let deliveryLines = [];
   let currentView = resolveInitialView();
@@ -1850,61 +1904,123 @@
     }
   }
 
-  async function restoreSession(){
-    let saved = null;
-    try{
-      saved = JSON.parse(sessionStorage.getItem(SESSION_KEY) || "null");
-    }catch(_){}
+  async function initializePublicMode(force){
+    document.body.classList.add("public-mode");
+    $("loginOverlay").classList.add("hidden");
+    clearLoginError();
 
-    if(!saved || !clean(saved.salesmanCode)){
-      $("loginOverlay").classList.remove("hidden");
-      return;
-    }
+    const cachedLocations = !force
+      ? cacheGet(PUBLIC_LOCATIONS_CACHE_KEY, CACHE_AGE_CUSTOMERS)
+      : null;
+    const cachedCustomers = !force
+      ? cacheGet(CUSTOMERS_CACHE_PREFIX + "PUBLIC", CACHE_AGE_CUSTOMERS)
+      : null;
+    const cachedProducts = !force
+      ? cacheGet(PRODUCTS_CACHE_KEY, CACHE_AGE_PRODUCTS)
+      : null;
+
+    profile = {
+      salesmanId:"PUBLIC",
+      salesmanName:"Sales Support",
+      publicMode:true,
+      locations:Array.isArray(cachedLocations) ? cachedLocations : []
+    };
+    salesmanCode = "PUBLIC";
+
+    if(Array.isArray(cachedCustomers)) customers = cachedCustomers;
+    if(Array.isArray(cachedProducts)) products = cachedProducts;
+
+    updateSessionUI();
+    renderAll();
 
     try{
-      const verified = await verifyLogin(clean(saved.salesmanCode));
-      profile = verified;
-      salesmanCode = clean(saved.salesmanCode);
-      $("loginOverlay").classList.add("hidden");
+      const [locationData, productData, customerData] = await Promise.all([
+        jsonp(MASTER_API, {action:"getLocations"}),
+        jsonp(MASTER_API, {action:"getProducts"}),
+        jsonp(MASTER_API, {action:"getCustomers"})
+      ]);
+
+      profile.locations = Array.isArray(locationData)
+        ? locationData.map(location => ({
+            locationCode:clean(location.locationCode),
+            locationName:clean(location.locationName),
+            salespersonName:clean(location.salespersonName)
+          })).filter(location => location.locationCode)
+        : [];
+
+      products = Array.isArray(productData)
+        ? productData.map(product => ({
+            code:clean(product.code),
+            name:clean(product.name),
+            unit:clean(product.unit),
+            usdPrice:num(product.usdPrice),
+            barcode:clean(product.productBarcode || product.barcode)
+          })).filter(product => product.code && product.name)
+        : [];
+
+      customers = Array.isArray(customerData)
+        ? customerData.map(customer => ({
+            customerId:clean(customer.customerId),
+            name:clean(customer.name),
+            phone:clean(customer.phone),
+            address:clean(customer.address),
+            locationCode:clean(customer.locationCode),
+            googleMapsLink:clean(customer.googleMapsLink),
+            latitude:clean(customer.latitude),
+            longitude:clean(customer.longitude),
+            deliveryLocationNote:clean(customer.deliveryLocationNote)
+          })).filter(customer => customer.name)
+        : [];
+
+      cacheSet(PUBLIC_LOCATIONS_CACHE_KEY, profile.locations);
+      cacheSet(PRODUCTS_CACHE_KEY, products);
+      cacheSet(CUSTOMERS_CACHE_PREFIX + "PUBLIC", customers);
+
       updateSessionUI();
-      await loadSupportData(false);
+      renderAll();
+      showStatus("calcStatus", "Public mode ready. Search customer and products.", false);
       setView(currentView, false);
-    }catch(_){
-      sessionStorage.removeItem(SESSION_KEY);
-      profile = null;
-      salesmanCode = "";
-      $("loginOverlay").classList.remove("hidden");
+    }catch(error){
+      console.warn("Sales Support public-mode refresh:", error);
+      if(!customers.length || !products.length){
+        showStatus("calcStatus", error.message || "Could not load Master data.", true);
+      }
     }
   }
 
+  async function restoreSession(){
+    return initializePublicMode(false);
+  }
+
   function logout(){
-    profile = null;
-    salesmanCode = "";
-    customers = [];
-    customerPriceCache = {};
+    // Security is temporarily removed in V1.6.
+    // Keep a soft reset only.
     calcLines = [];
     deliveryLines = [];
     calcSelectedCustomerKey = "";
-    $("calcCustomerSearch").value = "";
-    $("calcCustomerSummary").innerHTML = "";
     calcSelectedProductCode = "";
     deliverySelectedProductCode = "";
+    $("calcCustomerSearch").value = "";
+    $("calcCustomerSummary").innerHTML = "";
     $("calcProductSearch").value = "";
     $("deliveryProductSearch").value = "";
-    sessionStorage.removeItem(SESSION_KEY);
-    updateSessionUI();
     renderAll();
-    $("loginOverlay").classList.remove("hidden");
-    setTimeout(() => $("salesmanCode").focus(), 30);
+    initializePublicMode(true);
   }
 
   function updateSessionUI(){
     if(profile){
-      $("salesmanPill").textContent = "👤 " + profile.salesmanName;
-      $("locationPill").textContent = "📍 " + profile.locations.length + " location" + (profile.locations.length === 1 ? "" : "s");
-      $("logoutBtn").hidden = false;
+      const publicMode = !!profile.publicMode;
+      $("salesmanPill").textContent = publicMode
+        ? "🌐 Public Mode"
+        : "👤 " + profile.salesmanName;
+      $("salesmanPill").classList.toggle("public-pill", publicMode);
+      $("locationPill").textContent =
+        "📍 " + profile.locations.length + " location" + (profile.locations.length === 1 ? "" : "s");
+      $("logoutBtn").hidden = true;
     }else{
       $("salesmanPill").textContent = "Not signed in";
+      $("salesmanPill").classList.remove("public-pill");
       $("locationPill").textContent = "0 locations";
       $("logoutBtn").hidden = true;
     }
@@ -2183,7 +2299,15 @@
     const elements = productPickerElements(kind);
     if(!elements.input || !elements.box) return;
 
-    const matches = filteredProducts(elements.input.value);
+    const query = clean(elements.input.value);
+
+    if(kind === "calc" && !query){
+      elements.box.innerHTML = "";
+      elements.box.hidden = true;
+      return;
+    }
+
+    const matches = filteredProducts(query);
 
     if(!matches.length){
       elements.box.innerHTML =
@@ -2313,7 +2437,7 @@
     if(!select) return;
 
     const previous = select.value;
-    select.innerHTML = '<option value="">All Your Locations</option>';
+    select.innerHTML = `<option value="">${profile?.publicMode ? "All Locations" : "All Your Locations"}</option>`;
 
     (profile?.locations || []).forEach(location => {
       const option = document.createElement("option");
@@ -2412,7 +2536,7 @@
     });
 
     if(!customer){
-      showStatus("calcStatus", "Choose a location, then type a customer name to load customer-specific prices.", false);
+      showStatus("calcStatus", "Choose a location, then type a customer name to load prices.", false);
       renderCalcLines();
       return;
     }
@@ -2477,17 +2601,34 @@
     renderCalcCustomerSuggestions();
   }
 
-  async function effectiveProductPrice(product){
+  async function resolveCalcProductPricing(product){
     const customer = getCalcCustomer();
-    if(!customer) return product.usdPrice;
+
+    if(!customer){
+      return {
+        price:product ? product.usdPrice : 0,
+        hasSpecialPrice:false
+      };
+    }
 
     try{
       const data = await getCustomerPrices(customer);
-      const saved = data.products.find(p => p.productCode.toUpperCase() === product.code.toUpperCase());
-      return saved ? saved.customerPriceUSD : product.usdPrice;
-    }catch(_){
-      return product.usdPrice;
-    }
+      const saved = data.products.find(
+        p => p.productCode.toUpperCase() === product.code.toUpperCase()
+      );
+
+      if(saved){
+        return {
+          price:saved.customerPriceUSD || product.usdPrice,
+          hasSpecialPrice:!!saved.isCustomPrice
+        };
+      }
+    }catch(_){}
+
+    return {
+      price:product ? product.usdPrice : 0,
+      hasSpecialPrice:false
+    };
   }
 
   function loadCalcRatePreference(){
@@ -2518,7 +2659,7 @@
     handleCalcCurrencyChange();
   }
 
-  function openCalcQtyModal(product, price){
+  function openCalcQtyModal(product, price, hasSpecialPrice = false){
     if(!product) return;
 
     const existing = calcLines.find(
@@ -2528,6 +2669,7 @@
     pendingCalcProduct = {
       product:product,
       price:num(price),
+      hasSpecialPrice:!!hasSpecialPrice,
       existingId:existing ? existing.id : ""
     };
 
@@ -2541,7 +2683,7 @@
       ? String(existing.qty)
       : "1";
 
-    $("calcQtyConfirm").textContent = existing ? "Update Quantity" : "Add Product";
+    $("calcQtyConfirm").textContent = existing ? "Update Quantity" : "Next";
     $("calcQtyStatus").textContent = "";
     $("calcQtyModal").classList.remove("hidden");
 
@@ -2568,6 +2710,94 @@
     input.focus();
   }
 
+  function openCalcPriceModal(product, qty, initialUsdPrice){
+    if(!product) return;
+
+    pendingCalcPriceContext = {
+      product,
+      qty:num(qty),
+      initialUsdPrice:num(initialUsdPrice)
+    };
+
+    const currency = calcCurrency();
+    const displayPrice = usdToDisplay(initialUsdPrice);
+
+    $("calcPriceProductName").textContent = product.name;
+    $("calcPriceProductMeta").textContent =
+      [product.code, product.unit, "Qty: " + qty].filter(Boolean).join(" · ");
+    $("calcPriceLabel").textContent =
+      "Enter selling price (" + currency + ")";
+    $("calcPriceInput").step = currency === "KHR" ? "1" : "0.01";
+    $("calcPriceInput").value = currency === "KHR"
+      ? String(Math.round(displayPrice))
+      : String(Number(displayPrice.toFixed(2)));
+    $("calcPriceStatus").textContent = "";
+    $("calcPriceModal").classList.remove("hidden");
+
+    setTimeout(() => {
+      $("calcPriceInput").focus();
+      $("calcPriceInput").select();
+    }, 30);
+  }
+
+  function closeCalcPriceModal(){
+    pendingCalcPriceContext = null;
+    $("calcPriceModal").classList.add("hidden");
+    $("calcPriceStatus").textContent = "";
+    setProductPickerSelection("calc", null);
+    $("calcProductSearch").focus();
+  }
+
+  function finalizeCalcProduct(product, qty, usdPrice, manualPrice){
+    if(!product) return;
+
+    calcLines.push({
+      id:"CALC-" + Date.now() + "-" + Math.random().toString(36).slice(2,7),
+      productCode:product.code,
+      productName:product.name,
+      unit:product.unit,
+      qty:qty,
+      usdPrice:num(usdPrice),
+      defaultUsdPrice:num(usdPrice),
+      manualPrice:!!manualPrice
+    });
+
+    setProductPickerSelection("calc", null);
+    renderCalcLines();
+    $("calcProductSearch").focus();
+  }
+
+  function confirmCalcPrice(event){
+    event.preventDefault();
+
+    if(!pendingCalcPriceContext || !pendingCalcPriceContext.product){
+      closeCalcPriceModal();
+      return;
+    }
+
+    const displayPrice = num($("calcPriceInput").value);
+    if(!(displayPrice > 0)){
+      $("calcPriceStatus").textContent = "Price must be greater than zero.";
+      $("calcPriceStatus").style.color = "#c0392b";
+      $("calcPriceInput").focus();
+      return;
+    }
+
+    const usdPrice = displayToUsd(displayPrice);
+
+    const context = pendingCalcPriceContext;
+    pendingCalcPriceContext = null;
+    $("calcPriceModal").classList.add("hidden");
+    $("calcPriceStatus").textContent = "";
+
+    finalizeCalcProduct(
+      context.product,
+      context.qty,
+      usdPrice,
+      true
+    );
+  }
+
   function confirmCalcQty(event){
     event.preventDefault();
 
@@ -2591,25 +2821,29 @@
 
     if(existing){
       existing.qty = qty;
-      existing.usdPrice = pendingCalcProduct.price;
-      existing.defaultUsdPrice = pendingCalcProduct.price;
-    }else{
-      calcLines.push({
-        id:"CALC-" + Date.now() + "-" + Math.random().toString(36).slice(2,7),
-        productCode:product.code,
-        productName:product.name,
-        unit:product.unit,
-        qty:qty,
-        usdPrice:pendingCalcProduct.price,
-        defaultUsdPrice:pendingCalcProduct.price,
-        manualPrice:false
-      });
+      if(!existing.manualPrice){
+        existing.usdPrice = pendingCalcProduct.price;
+        existing.defaultUsdPrice = pendingCalcProduct.price;
+      }
+
+      setProductPickerSelection("calc", null);
+      closeCalcQtyModal();
+      renderCalcLines();
+      $("calcProductSearch").focus();
+      return;
     }
 
-    setProductPickerSelection("calc", null);
+    const price = pendingCalcProduct.price;
+    const hasSpecialPrice = !!pendingCalcProduct.hasSpecialPrice;
+
     closeCalcQtyModal();
-    renderCalcLines();
-    $("calcProductSearch").focus();
+
+    if(!hasSpecialPrice){
+      openCalcPriceModal(product, qty, price);
+      return;
+    }
+
+    finalizeCalcProduct(product, qty, price, false);
   }
 
   async function selectCalculatorProduct(product){
@@ -2619,8 +2853,8 @@
     setProductPickerSelection("calc", product);
 
     try{
-      const price = await effectiveProductPrice(product);
-      openCalcQtyModal(product, price);
+      const pricing = await resolveCalcProductPricing(product);
+      openCalcQtyModal(product, pricing.price, pricing.hasSpecialPrice);
     }catch(error){
       setProductPickerSelection("calc", null);
       showStatus(
@@ -2662,7 +2896,7 @@
 
     if(!calcLines.length){
       body.innerHTML =
-        '<div class="calc-product-empty">No products added yet.<br>Search a product above and select it. Quantity will open automatically.</div>';
+        '<div class="calc-product-empty">No products added yet.<br>Type product text above to see matching products. Quantity will open automatically.</div>';
       calculateTotals();
       return;
     }
@@ -3305,7 +3539,7 @@
     }
 
     if(!customers.length && profile){
-      showStatus("calcStatus", "No customers found in your assigned locations.", false);
+      showStatus("calcStatus", profile?.publicMode ? "No customers found in available locations." : "No customers found in your assigned locations.", false);
     }
   }
 
@@ -3402,6 +3636,12 @@
     if(event.target === $("calcQtyModal")) closeCalcQtyModal();
   });
 
+  $("calcPriceForm").addEventListener("submit", confirmCalcPrice);
+  $("calcPriceCancel").addEventListener("click", closeCalcPriceModal);
+  $("calcPriceModal").addEventListener("click", event => {
+    if(event.target === $("calcPriceModal")) closeCalcPriceModal();
+  });
+
   $("deliveryCustomer").addEventListener("change", selectDeliveryCustomer);
   $("deliveryAddProductBtn").addEventListener("click", addDeliveryProduct);
   $("deliveryClearItemsBtn").addEventListener("click", () => {
@@ -3423,7 +3663,7 @@
   loadCalcRatePreference();
   handleCalcCurrencyChange();
   setView(currentView, false);
-  restoreSession();
+  initializePublicMode(false);
 
 })();
 </script>
