@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>BIG BROTHER — Sales Support V1.0</title>
+<title>BIG BROTHER — Sales Support V1.1 Mobile</title>
 <style>
   :root{
     --navy:#173f77;
@@ -119,6 +119,7 @@
   .card h3{font-size:15px}
   .grid2{display:grid;grid-template-columns:1fr 1fr;gap:11px}
   .grid3{display:grid;grid-template-columns:repeat(3,1fr);gap:11px}
+  .grid4{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:11px}
   .field label{
     display:block;
     margin-bottom:5px;
@@ -139,6 +140,83 @@
     font-size:14px;
   }
   .field textarea{min-height:78px;resize:vertical}
+
+  .customer-picker{
+    position:relative;
+    min-width:0;
+  }
+  .customer-picker input{
+    padding-right:38px;
+  }
+  .customer-picker-icon{
+    position:absolute;
+    right:11px;
+    top:50%;
+    transform:translateY(-50%);
+    color:#7d8fa2;
+    pointer-events:none;
+    font-size:15px;
+  }
+  .customer-suggestions{
+    position:absolute;
+    left:0;
+    right:0;
+    top:calc(100% + 5px);
+    z-index:120;
+    max-height:290px;
+    overflow:auto;
+    border:1px solid #cbd8e7;
+    border-radius:10px;
+    background:#fff;
+    box-shadow:0 12px 30px rgba(23,63,119,.16);
+    padding:5px;
+  }
+  .customer-suggestions[hidden]{display:none}
+  .customer-suggestion{
+    width:100%;
+    min-height:48px;
+    border:0;
+    background:#fff;
+    color:var(--text);
+    border-radius:8px;
+    padding:8px 10px;
+    text-align:left;
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    gap:12px;
+  }
+  .customer-suggestion:hover,
+  .customer-suggestion:focus{
+    background:#eef5ff;
+    outline:none;
+  }
+  .customer-suggestion strong{
+    display:block;
+    font-size:13px;
+    color:var(--navy);
+  }
+  .customer-suggestion small{
+    display:block;
+    margin-top:3px;
+    color:var(--muted);
+    font-size:10px;
+  }
+  .customer-suggestion .loc{
+    flex:0 0 auto;
+    border-radius:999px;
+    padding:4px 7px;
+    background:#edf4ff;
+    color:var(--blue);
+    font-size:9px;
+    font-weight:900;
+  }
+  .customer-suggestions-empty{
+    padding:13px 10px;
+    color:var(--muted);
+    font-size:12px;
+    text-align:center;
+  }
   .muted{color:var(--muted);font-size:12px;line-height:1.45}
   .status-line{min-height:20px;margin-top:7px;font-size:12px;color:var(--muted)}
   .section-head{
@@ -364,19 +442,182 @@
     width:36px;height:36px;border:0;border-radius:50%;background:#eef2f7;font-size:18px
   }
   .loading{opacity:.65;pointer-events:none}
-  @media(max-width:800px){
+  @media(max-width:900px){
+    .grid4{grid-template-columns:repeat(2,minmax(0,1fr))}
     .customer-summary,.delivery-meta{grid-template-columns:repeat(2,minmax(0,1fr))}
     .customer-list{grid-template-columns:1fr}
-    .grid3{grid-template-columns:1fr 1fr}
   }
-  @media(max-width:600px){
-    .app{padding:11px}
-    .topbar{flex-direction:column}
-    .session{justify-content:flex-start}
-    .grid2,.grid3,.search-row{grid-template-columns:1fr}
-    .customer-summary,.delivery-meta{grid-template-columns:1fr 1fr}
-    .product-toolbar{grid-template-columns:1fr}
-    .actions .btn{flex:1 1 150px}
+  @media(max-width:700px){
+    html,body{max-width:100%;overflow-x:hidden}
+    body{font-size:14px}
+    .app{padding:10px}
+    .topbar{
+      flex-direction:column;
+      align-items:stretch;
+      gap:10px;
+      margin-bottom:10px;
+    }
+    .title h1{font-size:21px}
+    .title p{font-size:12px}
+    .session{
+      justify-content:flex-start;
+      width:100%;
+      gap:6px;
+    }
+    .pill{
+      min-height:32px;
+      max-width:100%;
+      white-space:normal;
+    }
+    .tabs{
+      display:grid;
+      grid-template-columns:1fr 1fr;
+      gap:7px;
+    }
+    .tabs button{
+      min-height:46px;
+      padding:8px 7px;
+      font-size:12px;
+    }
+    .card{
+      border-radius:11px;
+      padding:12px;
+      margin-bottom:10px;
+    }
+    .section-head{
+      align-items:flex-start;
+      flex-wrap:wrap;
+    }
+    .grid2,.grid3,.grid4,.search-row{
+      grid-template-columns:1fr;
+      gap:9px;
+    }
+    .field input,.field select,.field textarea,
+    .product-toolbar select,.search-row input,.search-row select{
+      min-height:46px;
+      font-size:16px;
+    }
+    .customer-summary,.delivery-meta{
+      grid-template-columns:1fr;
+      gap:7px;
+    }
+    .product-toolbar{
+      grid-template-columns:1fr;
+      gap:7px;
+    }
+    .product-toolbar .btn{width:100%}
+    .line-table-wrap{overflow:visible}
+    .line-table{
+      min-width:0;
+      border-collapse:separate;
+      border-spacing:0;
+    }
+    .line-table thead{display:none}
+    .line-table,
+    .line-table tbody,
+    .line-table tr,
+    .line-table td{
+      display:block;
+      width:100%;
+    }
+    .line-table tr{
+      margin-bottom:10px;
+      border:1px solid #dce5ef;
+      border-radius:10px;
+      background:#fff;
+      overflow:hidden;
+    }
+    .line-table td{
+      min-height:44px;
+      display:grid;
+      grid-template-columns:96px minmax(0,1fr);
+      align-items:center;
+      gap:10px;
+      padding:9px 10px;
+      border-bottom:1px solid #e9eef4;
+      text-align:left!important;
+    }
+    .line-table td:last-child{border-bottom:0}
+    .line-table td::before{
+      content:attr(data-label);
+      color:#65798e;
+      font-size:10px;
+      font-weight:900;
+      text-transform:uppercase;
+      letter-spacing:.25px;
+    }
+    .line-table td[colspan]{
+      display:block;
+      text-align:center!important;
+    }
+    .line-table td[colspan]::before{display:none}
+    .line-table input{
+      min-width:0;
+      min-height:44px;
+      font-size:16px;
+    }
+    .line-table .money{
+      text-align:left!important;
+      font-size:14px;
+      font-weight:900;
+    }
+    .line-table td:last-child .btn{
+      width:100%;
+      min-height:42px;
+    }
+    .total-box{
+      width:100%;
+      margin-top:10px;
+    }
+    .total-row{align-items:center}
+    .inline-input{
+      width:145px!important;
+      min-height:42px!important;
+      font-size:16px!important;
+    }
+    .actions{
+      display:grid;
+      grid-template-columns:1fr;
+      gap:7px;
+    }
+    .actions .btn,
+    .card-actions .btn,
+    .card-actions a{
+      min-height:44px;
+    }
+    .customer-card{padding:12px}
+    .customer-card-head{flex-wrap:wrap}
+    .customer-card .card-actions{
+      display:grid;
+      grid-template-columns:1fr 1fr;
+    }
+    .customer-card .card-actions .btn,
+    .customer-card .card-actions a{
+      width:100%;
+      display:flex;
+      align-items:center;
+      justify-content:center;
+    }
+    .price-grid{grid-template-columns:minmax(0,1fr) auto}
+    .delivery-head{flex-wrap:wrap}
+    .modal{padding:10px 7px}
+    .modal-card{
+      width:100%;
+      border-radius:11px;
+    }
+    .modal-body{padding:10px}
+    .loginbox{padding:16px}
+    .customer-suggestions{max-height:250px}
+  }
+  @media(max-width:420px){
+    .tabs{grid-template-columns:1fr}
+    .customer-card .card-actions{grid-template-columns:1fr}
+    .total-row{
+      gap:8px;
+      flex-wrap:wrap;
+    }
+    .inline-input{width:100%!important}
+    .customer-suggestion{align-items:flex-start}
   }
   body.embed .tabs{display:none}
   body.embed .app{width:100%;max-width:none}
@@ -415,10 +656,34 @@
         <span class="badge blue">NO SAVE</span>
       </div>
 
-      <div class="grid3">
+      <div class="grid4">
         <div class="field">
-          <label>Customer</label>
-          <select id="calcCustomer"></select>
+          <label>Location</label>
+          <select id="calcLocation">
+            <option value="">All Your Locations</option>
+          </select>
+        </div>
+        <div class="field">
+          <label>Customer Name</label>
+          <div class="customer-picker" id="calcCustomerPicker">
+            <input
+              id="calcCustomerSearch"
+              type="search"
+              autocomplete="off"
+              inputmode="search"
+              placeholder="Type customer name or phone..."
+              aria-label="Search customer name"
+              aria-autocomplete="list"
+              aria-controls="calcCustomerSuggestions"
+            >
+            <span class="customer-picker-icon">⌕</span>
+            <div
+              id="calcCustomerSuggestions"
+              class="customer-suggestions"
+              role="listbox"
+              hidden
+            ></div>
+          </div>
         </div>
         <div class="field">
           <label>Currency</label>
@@ -659,6 +924,7 @@
   let customerPriceCache = {};
   let calcLines = [];
   let calcDiscountUSD = 0;
+  let calcSelectedCustomerKey = "";
   let deliveryLines = [];
   let currentView = resolveInitialView();
 
@@ -883,6 +1149,9 @@
     customerPriceCache = {};
     calcLines = [];
     deliveryLines = [];
+    calcSelectedCustomerKey = "";
+    $("calcCustomerSearch").value = "";
+    $("calcCustomerSummary").innerHTML = "";
     sessionStorage.removeItem(SESSION_KEY);
     updateSessionUI();
     renderAll();
@@ -978,6 +1247,19 @@
 
   function customerLabel(customer){
     return customer.name + " — " + customer.locationCode;
+  }
+
+  function customerKey(customer){
+    if(!customer) return "";
+    return customer.customerId
+      ? "id:" + customer.customerId
+      : "name:" + customer.locationCode + "|" + customer.name;
+  }
+
+  function customerByKey(key){
+    const target = clean(key);
+    if(!target) return null;
+    return customers.find(customer => customerKey(customer) === target) || null;
   }
 
   function fillCustomerSelect(selectId, selectedValue){
@@ -1144,14 +1426,115 @@
     return calcCurrency() === "KHR" ? num(value) / calcRate() : num(value);
   }
 
-  async function selectCalcCustomer(){
-    const customer = getCustomerFromSelect("calcCustomer");
+  function getCalcCustomer(){
+    return customerByKey(calcSelectedCustomerKey);
+  }
+
+  function renderCalcLocationFilter(){
+    const select = $("calcLocation");
+    if(!select) return;
+
+    const previous = select.value;
+    select.innerHTML = '<option value="">All Your Locations</option>';
+
+    (profile?.locations || []).forEach(location => {
+      const option = document.createElement("option");
+      option.value = location.locationCode;
+      option.textContent = location.locationCode + " — " + location.locationName;
+      select.appendChild(option);
+    });
+
+    if(previous && profile?.locations.some(x => x.locationCode === previous)){
+      select.value = previous;
+    }else if((profile?.locations || []).length === 1){
+      select.value = profile.locations[0].locationCode;
+    }
+  }
+
+  function filteredCalcCustomers(term){
+    const locationCode = clean($("calcLocation").value);
+    const q = clean(term).toLowerCase();
+
+    return customers.filter(customer => {
+      if(locationCode && customer.locationCode !== locationCode) return false;
+      if(!q) return true;
+
+      return [
+        customer.name,
+        customer.phone,
+        customer.customerId,
+        customer.address
+      ].some(value => clean(value).toLowerCase().includes(q));
+    });
+  }
+
+  function hideCalcCustomerSuggestions(){
+    $("calcCustomerSuggestions").hidden = true;
+  }
+
+  function renderCalcCustomerSuggestions(){
+    const box = $("calcCustomerSuggestions");
+    const input = $("calcCustomerSearch");
+    if(!box || !input || !profile) return;
+
+    const matches = filteredCalcCustomers(input.value).slice(0, 18);
+
+    if(!matches.length){
+      box.innerHTML = '<div class="customer-suggestions-empty">No customer found in this location.</div>';
+      box.hidden = false;
+      return;
+    }
+
+    box.innerHTML = matches.map(customer => `
+      <button
+        type="button"
+        class="customer-suggestion"
+        role="option"
+        data-key="${esc(customerKey(customer))}"
+      >
+        <span>
+          <strong>${esc(customer.name)}</strong>
+          <small>${esc(customer.phone || "No phone")} · ${esc(customer.customerId || "No ID")}</small>
+        </span>
+        <span class="loc">${esc(customer.locationCode)}</span>
+      </button>
+    `).join("");
+
+    box.hidden = false;
+
+    box.querySelectorAll(".customer-suggestion").forEach(button => {
+      button.addEventListener("click", async () => {
+        const customer = customerByKey(button.dataset.key);
+        if(customer) await setCalcCustomer(customer, true);
+      });
+    });
+  }
+
+  async function setCalcCustomer(customer, loadPrices){
+    calcSelectedCustomerKey = customerKey(customer);
+    $("calcCustomerSearch").value = customer ? customer.name : "";
+    $("calcCustomerSummary").innerHTML = summaryHtml(customer);
+    hideCalcCustomerSuggestions();
+
+    if(customer && clean(customer.locationCode)){
+      $("calcLocation").value = customer.locationCode;
+    }
+
+    if(loadPrices !== false){
+      await selectCalcCustomer(customer);
+    }
+  }
+
+  async function selectCalcCustomer(customerOverride){
+    const customer = customerOverride || getCalcCustomer();
     $("calcCustomerSummary").innerHTML = summaryHtml(customer);
 
-    calcLines.forEach(line => { if(!line.manualPrice) line.usdPrice = line.defaultUsdPrice; });
+    calcLines.forEach(line => {
+      if(!line.manualPrice) line.usdPrice = line.defaultUsdPrice;
+    });
 
     if(!customer){
-      showStatus("calcStatus", "Select a customer to load customer-specific prices.", false);
+      showStatus("calcStatus", "Choose a location, then type a customer name to load customer-specific prices.", false);
       renderCalcLines();
       return;
     }
@@ -1182,8 +1565,42 @@
     }
   }
 
+  function handleCalcLocationChange(){
+    const selectedLocation = clean($("calcLocation").value);
+    const selectedCustomer = getCalcCustomer();
+
+    if(
+      selectedCustomer &&
+      selectedLocation &&
+      selectedCustomer.locationCode !== selectedLocation
+    ){
+      calcSelectedCustomerKey = "";
+      $("calcCustomerSearch").value = "";
+      $("calcCustomerSummary").innerHTML = "";
+      showStatus("calcStatus", "Type a customer name from the selected location.", false);
+    }
+
+    renderCalcCustomerSuggestions();
+  }
+
+  function handleCalcCustomerInput(){
+    const input = $("calcCustomerSearch");
+    const selectedCustomer = getCalcCustomer();
+
+    if(
+      selectedCustomer &&
+      clean(input.value).toLowerCase() !== selectedCustomer.name.toLowerCase()
+    ){
+      calcSelectedCustomerKey = "";
+      $("calcCustomerSummary").innerHTML = "";
+      showStatus("calcStatus", "Select a customer from the search results to load the correct price.", false);
+    }
+
+    renderCalcCustomerSuggestions();
+  }
+
   async function effectiveProductPrice(product){
-    const customer = getCustomerFromSelect("calcCustomer");
+    const customer = getCalcCustomer();
     if(!customer) return product.usdPrice;
 
     try{
@@ -1229,19 +1646,19 @@
 
     body.innerHTML = calcLines.map(line => `
       <tr data-id="${esc(line.id)}">
-        <td>
+        <td data-label="Product">
           <strong>${esc(line.productName)}</strong>
           <div class="muted">${esc(line.productCode)}${line.unit ? " · " + esc(line.unit) : ""}</div>
         </td>
-        <td>
+        <td data-label="Qty">
           <input class="calc-qty" type="number" min="0" step="0.01" inputmode="decimal" value="${line.qty || ""}" placeholder="0">
         </td>
-        <td>
+        <td data-label="Price">
           <input class="calc-price" type="number" min="0" step="${currency === "KHR" ? "1" : "0.01"}" inputmode="decimal" value="${usdToDisplay(line.usdPrice).toFixed(currency === "KHR" ? 0 : 2)}">
           <div class="muted">${line.manualPrice ? "Manual" : "Customer price"}</div>
         </td>
-        <td class="money calc-line-total">${formatMoney(line.qty * usdToDisplay(line.usdPrice), currency)}</td>
-        <td><button class="btn danger small calc-remove" type="button">×</button></td>
+        <td data-label="Total" class="money calc-line-total">${formatMoney(line.qty * usdToDisplay(line.usdPrice), currency)}</td>
+        <td data-label="Remove"><button class="btn danger small calc-remove" type="button">Remove</button></td>
       </tr>
     `).join("");
 
@@ -1356,10 +1773,10 @@
 
     body.innerHTML = deliveryLines.map(line => `
       <tr data-id="${esc(line.id)}">
-        <td><strong>${esc(line.productName)}</strong><div class="muted">${esc(line.productCode)}</div></td>
-        <td><input class="delivery-qty" type="number" min="0" step="0.01" inputmode="decimal" value="${line.qty || ""}" placeholder="0"></td>
-        <td>${esc(line.unit || "-")}</td>
-        <td><button class="btn danger small delivery-remove" type="button">×</button></td>
+        <td data-label="Product"><strong>${esc(line.productName)}</strong><div class="muted">${esc(line.productCode)}</div></td>
+        <td data-label="Qty"><input class="delivery-qty" type="number" min="0" step="0.01" inputmode="decimal" value="${line.qty || ""}" placeholder="0"></td>
+        <td data-label="Unit">${esc(line.unit || "-")}</td>
+        <td data-label="Remove"><button class="btn danger small delivery-remove" type="button">Remove</button></td>
       </tr>
     `).join("");
 
@@ -1562,9 +1979,8 @@
 
       card.querySelector(".use-calculator").addEventListener("click", async () => {
         setView("calculator", true);
-        fillCustomerSelect("calcCustomer", customer.customerId || (customer.locationCode + "|" + customer.name));
-        $("calcCustomer").value = customer.customerId || (customer.locationCode + "|" + customer.name);
-        await selectCalcCustomer();
+        await setCalcCustomer(customer, true);
+        $("calcCustomerSearch").focus();
       });
     });
   }
@@ -1677,10 +2093,10 @@
             <tbody>
               ${items.map(item => `
                 <tr>
-                  <td><strong>${esc(item.productName)}</strong><div class="muted">${esc(item.productCode)}${item.unit ? " · " + esc(item.unit) : ""}</div></td>
-                  <td class="money">${num(item.requestedQty).toLocaleString("en-US")}</td>
-                  <td class="money">${num(item.deliveredQty).toLocaleString("en-US")}</td>
-                  <td>${esc(item.status || "-")}</td>
+                  <td data-label="Product"><strong>${esc(item.productName)}</strong><div class="muted">${esc(item.productCode)}${item.unit ? " · " + esc(item.unit) : ""}</div></td>
+                  <td data-label="Requested" class="money">${num(item.requestedQty).toLocaleString("en-US")}</td>
+                  <td data-label="Delivered" class="money">${num(item.deliveredQty).toLocaleString("en-US")}</td>
+                  <td data-label="Status">${esc(item.status || "-")}</td>
                 </tr>
               `).join("") || '<tr><td colspan="4" class="empty">No items.</td></tr>'}
             </tbody>
@@ -1723,7 +2139,7 @@
     });
 
     const subtitles = {
-      "calculator":"Calculation-only price verification using your customer prices.",
+      "calculator":"Choose a location, search customer name, and verify customer-specific prices.",
       "request-delivery":"Create a physical delivery task for the Delivery team.",
       "your-customer":"Read-only customers from your assigned Location Control.",
       "successful-delivery":"Review completed physical delivery requests."
@@ -1742,10 +2158,9 @@
   }
 
   function renderAll(){
-    const calcValue = $("calcCustomer").value;
     const deliveryValue = $("deliveryCustomer").value;
 
-    fillCustomerSelect("calcCustomer", calcValue);
+    renderCalcLocationFilter();
     fillCustomerSelect("deliveryCustomer", deliveryValue);
     productSelectOptions("calcProductChoice");
     productSelectOptions("deliveryProductChoice");
@@ -1753,6 +2168,12 @@
     renderYourCustomers();
     renderCalcLines();
     renderDeliveryLines();
+
+    const calcCustomer = getCalcCustomer();
+    if(calcCustomer){
+      $("calcCustomerSearch").value = calcCustomer.name;
+      $("calcCustomerSummary").innerHTML = summaryHtml(calcCustomer);
+    }
 
     if(!customers.length && profile){
       showStatus("calcStatus", "No customers found in your assigned locations.", false);
@@ -1778,7 +2199,23 @@
     button.addEventListener("click", () => setView(button.dataset.view, true));
   });
 
-  $("calcCustomer").addEventListener("change", selectCalcCustomer);
+  $("calcLocation").addEventListener("change", handleCalcLocationChange);
+  $("calcCustomerSearch").addEventListener("input", handleCalcCustomerInput);
+  $("calcCustomerSearch").addEventListener("focus", renderCalcCustomerSuggestions);
+  $("calcCustomerSearch").addEventListener("keydown", async event => {
+    if(event.key !== "Enter") return;
+    const first = $("calcCustomerSuggestions").querySelector(".customer-suggestion");
+    if(!first) return;
+    event.preventDefault();
+    const customer = customerByKey(first.dataset.key);
+    if(customer) await setCalcCustomer(customer, true);
+  });
+  document.addEventListener("click", event => {
+    if(!$("calcCustomerPicker").contains(event.target)){
+      hideCalcCustomerSuggestions();
+    }
+  });
+
   $("calcAddProductBtn").addEventListener("click", addCalcProduct);
   $("calcClearBtn").addEventListener("click", clearCalculator);
   $("calcCurrency").addEventListener("change", handleCalcCurrencyChange);
