@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>BIG BROTHER — Sales Support V1.3 Calculator Redesign</title>
+<title>BIG BROTHER — Sales Support V1.5 Editable Price</title>
 <style>
   :root{
     --navy:#173f77;
@@ -857,6 +857,9 @@
     gap:8px;
     margin-bottom:12px;
   }
+  .calc-product-search-row.calc-product-search-auto{
+    grid-template-columns:minmax(0,1fr);
+  }
   .calc-product-search-row .product-picker input{
     min-height:46px;
     font-size:14px;
@@ -903,16 +906,33 @@
     color:#7a8da1;
     font-size:10px;
   }
-  .calc-price-badge{
-    min-width:76px;
+  .calc-price-editor{
+    min-width:94px;
+    display:grid;
+    gap:3px;
+  }
+  .calc-price-editor input{
+    width:94px;
+    min-height:38px;
+    border:1px solid #b9d0ee;
     border-radius:9px;
     background:#edf5ff;
     color:#174d90;
-    padding:8px 9px;
+    padding:7px 8px;
     text-align:right;
     font-weight:900;
     font-size:12px;
+  }
+  .calc-price-editor small{
+    color:#71869c;
+    font-size:9px;
+    text-align:right;
     white-space:nowrap;
+  }
+  .calc-price-editor input:focus{
+    outline:2px solid rgba(31,103,216,.18);
+    border-color:#5f95dd;
+    background:#fff;
   }
   .calc-qty-stepper{
     display:grid;
@@ -1180,8 +1200,16 @@
     .calc-product-main{
       grid-column:1 / -1;
     }
-    .calc-price-badge{
+    .calc-price-editor{
       min-width:0;
+    }
+    .calc-price-editor input{
+      width:100%;
+      min-width:86px;
+      min-height:42px;
+      font-size:14px;
+    }
+    .calc-price-editor small{
       text-align:left;
     }
     .calc-qty-stepper{
@@ -1327,11 +1355,11 @@
         <div class="calc-products-head">
           <div>
             <h2>📦 Products</h2>
-            <div class="calc-product-count" id="calcProductCount">0 items</div>
+            <div class="calc-product-count" id="calcProductCount">0 items · select product → enter QTY</div>
           </div>
         </div>
 
-        <div class="calc-product-search-row">
+        <div class="calc-product-search-row calc-product-search-auto">
           <div class="product-picker" id="calcProductPicker">
             <input
               id="calcProductSearch"
@@ -1351,7 +1379,6 @@
               hidden
             ></div>
           </div>
-          <button class="btn primary" type="button" id="calcAddProductBtn">＋ Add Product</button>
         </div>
 
         <div id="calcLines" class="calc-product-list"></div>
@@ -2183,9 +2210,15 @@
     elements.box.hidden = false;
 
     elements.box.querySelectorAll(".product-suggestion").forEach(button => {
-      button.addEventListener("click", () => {
+      button.addEventListener("click", async () => {
         const product = productByCode(button.dataset.code);
-        if(product) setProductPickerSelection(kind, product);
+        if(!product) return;
+
+        if(kind === "calc"){
+          await selectCalculatorProduct(product);
+        }else{
+          setProductPickerSelection(kind, product);
+        }
       });
     });
   }
@@ -2522,6 +2555,9 @@
     pendingCalcProduct = null;
     $("calcQtyModal").classList.add("hidden");
     $("calcQtyStatus").textContent = "";
+
+    // V1.4: return calculator directly to product search.
+    setProductPickerSelection("calc", null);
   }
 
   function adjustCalcQty(delta){
@@ -2576,12 +2612,35 @@
     $("calcProductSearch").focus();
   }
 
+  async function selectCalculatorProduct(product){
+    if(!product) return;
+
+    // Keep the chosen product visible briefly while price is loading.
+    setProductPickerSelection("calc", product);
+
+    try{
+      const price = await effectiveProductPrice(product);
+      openCalcQtyModal(product, price);
+    }catch(error){
+      setProductPickerSelection("calc", null);
+      showStatus(
+        "calcStatus",
+        error && error.message
+          ? error.message
+          : "Could not load product price.",
+        true
+      );
+    }
+  }
+
   async function addCalcProduct(){
     let code = clean(calcSelectedProductCode);
 
     if(!code){
-      const selected = await selectFirstProductSuggestion("calc");
-      if(selected) code = clean(calcSelectedProductCode);
+      const first = $("calcProductSuggestions").querySelector(".product-suggestion");
+      if(first){
+        code = clean(first.dataset.code);
+      }
     }
 
     const product = productByCode(code);
@@ -2591,10 +2650,7 @@
       return;
     }
 
-    const price = await effectiveProductPrice(product);
-
-    // V1.3: immediately ask the salesman for quantity.
-    openCalcQtyModal(product, price);
+    await selectCalculatorProduct(product);
   }
 
   function renderCalcLines(){
@@ -2606,7 +2662,7 @@
 
     if(!calcLines.length){
       body.innerHTML =
-        '<div class="calc-product-empty">No products added yet.<br>Search a product above and tap <strong>Add Product</strong>.</div>';
+        '<div class="calc-product-empty">No products added yet.<br>Search a product above and select it. Quantity will open automatically.</div>';
       calculateTotals();
       return;
     }
@@ -2618,8 +2674,17 @@
           <small>${esc(line.productCode)}${line.unit ? " · " + esc(line.unit) : ""}</small>
         </div>
 
-        <div class="calc-price-badge">
-          ${formatMoney(usdToDisplay(line.usdPrice), currency)}
+        <div class="calc-price-editor">
+          <input
+            class="calc-price-input"
+            type="number"
+            min="0"
+            step="${currency === "KHR" ? "1" : "0.01"}"
+            inputmode="decimal"
+            value="${usdToDisplay(line.usdPrice).toFixed(currency === "KHR" ? 0 : 2)}"
+            aria-label="Price for ${esc(line.productName)}"
+          >
+          <small>${currency} · editable</small>
         </div>
 
         <div class="calc-qty-stepper" aria-label="Quantity controls">
@@ -2639,6 +2704,24 @@
     body.querySelectorAll(".calc-product-row").forEach(row => {
       const line = calcLines.find(x => x.id === row.dataset.id);
       if(!line) return;
+
+      row.querySelector(".calc-price-input").addEventListener("input", event => {
+        const displayPrice = Math.max(0, num(event.target.value));
+        line.usdPrice = displayToUsd(displayPrice);
+        line.manualPrice = true;
+        calculateTotals();
+      });
+
+      row.querySelector(".calc-price-input").addEventListener("change", event => {
+        const displayPrice = Math.max(0, num(event.target.value));
+        line.usdPrice = displayToUsd(displayPrice);
+        line.manualPrice = true;
+
+        event.target.value = usdToDisplay(line.usdPrice)
+          .toFixed(calcCurrency() === "KHR" ? 0 : 2);
+
+        calculateTotals();
+      });
 
       row.querySelector(".calc-qty-minus").addEventListener("click", () => {
         line.qty = Math.max(0.01, num(line.qty) - 1);
@@ -2675,6 +2758,20 @@
 
     calcLines.forEach(line => {
       subtotalUSD += Math.max(0,num(line.qty)) * Math.max(0,num(line.usdPrice));
+
+      const row = $("calcLines").querySelector(
+        `.calc-product-row[data-id="${CSS.escape(line.id)}"]`
+      );
+
+      if(row){
+        const lineTotal = row.querySelector(".calc-line-total");
+        if(lineTotal){
+          lineTotal.textContent = formatMoney(
+            Math.max(0,num(line.qty)) * usdToDisplay(Math.max(0,num(line.usdPrice))),
+            currency
+          );
+        }
+      }
     });
 
     const grandUSD = Math.max(0, subtotalUSD - calcDiscountUSD);
@@ -3253,8 +3350,14 @@
   $("calcProductSearch").addEventListener("keydown", async event => {
     if(event.key !== "Enter") return;
     event.preventDefault();
-    const selected = await selectFirstProductSuggestion("calc");
-    if(selected) await addCalcProduct();
+
+    const first = $("calcProductSuggestions").querySelector(".product-suggestion");
+    if(!first) return;
+
+    const product = productByCode(first.dataset.code);
+    if(product){
+      await selectCalculatorProduct(product);
+    }
   });
 
   $("deliveryProductSearch").addEventListener("input", () => handleProductSearchInput("delivery"));
@@ -3275,7 +3378,6 @@
     }
   });
 
-  $("calcAddProductBtn").addEventListener("click", addCalcProduct);
   $("calcClearBtn").addEventListener("click", clearCalculator);
   $("calcNewBtn").addEventListener("click", newCalculation);
 
