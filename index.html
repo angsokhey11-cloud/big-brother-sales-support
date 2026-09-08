@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>BIG BROTHER — Sales Support V1.7 Frozen Delivery Views</title>
+<title>BIG BROTHER — Sales Support V1.8 No Login</title>
 <style>
   :root{
     --navy:#173f77;
@@ -1255,7 +1255,6 @@
   /* =========================================================
      V1.6 Public mode + calculator price prompt
      ========================================================= */
-  body.public-mode #loginOverlay{display:none !important;}
   .public-pill{
     background:#eaf4ff;
     color:#1c5ca8;
@@ -1294,6 +1293,7 @@
 </style>
 </head>
 <body>
+<!-- V1.8: Sales Support login/security step removed temporarily. Public Master data loads directly. -->
 
 <div class="app" id="app">
   <div class="topbar">
@@ -1304,7 +1304,6 @@
     <div class="session">
       <span class="pill" id="salesmanPill">Not signed in</span>
       <span class="pill" id="locationPill">0 locations</span>
-      <button class="btn ghost small" type="button" id="logoutBtn" hidden>Logout</button>
     </div>
   </div>
 
@@ -1598,20 +1597,6 @@
   </section>
 </div>
 
-<div class="overlay" id="loginOverlay">
-  <form class="loginbox" id="loginForm">
-    <h2>Sales Support Access</h2>
-    <p>Enter your Salesman Code. Your assigned locations control which customers are available in Sales Support.</p>
-    <div class="field">
-      <label>Salesman Code</label>
-      <input id="salesmanCode" type="password" autocomplete="off" required>
-    </div>
-    <button class="btn primary" type="submit" style="width:100%">Sign In</button>
-    <div class="login-error" id="loginError"></div>
-  </form>
-</div>
-
-
 <div class="qty-modal hidden" id="calcQtyModal">
   <form class="qty-dialog" id="calcQtyForm">
     <div class="qty-dialog-head">
@@ -1695,7 +1680,6 @@
   const DELIVERY_API =
     "https://script.google.com/macros/s/AKfycbzPn1d264aLYDgf-tPU7r1QRC7AfFh9epAjxDEQ0aGmTuvakp0ci516zz2Q3kyoFLZ9Bg/exec";
 
-  const SESSION_KEY = "bb_sales_support_session_v1";
   const PRODUCTS_CACHE_KEY = "bb_sales_support_products_v1";
   const CUSTOMERS_CACHE_PREFIX = "bb_sales_support_customers_v1_";
   const PRICE_CACHE_PREFIX = "bb_sales_support_prices_v1_";
@@ -1723,7 +1707,6 @@
   if (embed) document.body.classList.add("embed");
 
   let profile = null;
-  let salesmanCode = "";
   let customers = [];
   let products = [];
   let customerPriceCache = {};
@@ -1855,84 +1838,8 @@
     }
   }
 
-  function setLoginError(message){
-    const box = $("loginError");
-    box.textContent = clean(message) || "Access denied.";
-    box.classList.add("show");
-  }
-
-  function clearLoginError(){
-    $("loginError").classList.remove("show");
-    $("loginError").textContent = "";
-  }
-
-  async function verifyLogin(code){
-    const data = await apiPost(MASTER_API, {
-      action:"verifySalesmanAccess",
-      salesmanCode:code
-    });
-
-    if(!data || !data.success || !data.authorized) {
-      throw new Error(data?.error || "Invalid Salesman Code.");
-    }
-
-    return {
-      salesmanId:clean(data.salesmanId),
-      salesmanName:clean(data.salesmanName),
-      locations:Array.isArray(data.locations) ? data.locations.map(x => ({
-        locationCode:clean(x.locationCode),
-        locationName:clean(x.locationName),
-        salespersonName:clean(x.salespersonName)
-      })).filter(x => x.locationCode) : []
-    };
-  }
-
-  async function handleLogin(event){
-    event.preventDefault();
-    clearLoginError();
-
-    const code = clean($("salesmanCode").value);
-    if(!code){
-      setLoginError("Salesman Code is required.");
-      return;
-    }
-
-    const button = $("loginForm").querySelector('button[type="submit"]');
-    button.disabled = true;
-    button.textContent = "Signing In...";
-
-    try{
-      const verified = await verifyLogin(code);
-      profile = verified;
-      salesmanCode = code;
-
-      sessionStorage.setItem(SESSION_KEY, JSON.stringify({
-        salesmanCode:code,
-        salesmanId:verified.salesmanId,
-        salesmanName:verified.salesmanName
-      }));
-
-      $("salesmanCode").value = "";
-      $("loginOverlay").classList.add("hidden");
-
-      updateSessionUI();
-      await loadSupportData(true);
-      setView(currentView, false);
-    }catch(error){
-      profile = null;
-      salesmanCode = "";
-      sessionStorage.removeItem(SESSION_KEY);
-      setLoginError(error.message || "Access denied.");
-    }finally{
-      button.disabled = false;
-      button.textContent = "Sign In";
-    }
-  }
-
   async function initializePublicMode(force){
     document.body.classList.add("public-mode");
-    $("loginOverlay").classList.add("hidden");
-    clearLoginError();
 
     const cachedLocations = !force
       ? cacheGet(PUBLIC_LOCATIONS_CACHE_KEY, CACHE_AGE_CUSTOMERS)
@@ -1950,8 +1857,6 @@
       publicMode:true,
       locations:Array.isArray(cachedLocations) ? cachedLocations : []
     };
-    salesmanCode = "PUBLIC";
-
     if(Array.isArray(cachedCustomers)) customers = cachedCustomers;
     if(Array.isArray(cachedProducts)) products = cachedProducts;
 
@@ -2013,42 +1918,12 @@
     }
   }
 
-  async function restoreSession(){
-    return initializePublicMode(false);
-  }
-
-  function logout(){
-    // Security is temporarily removed in V1.6.
-    // Keep a soft reset only.
-    calcLines = [];
-    deliveryLines = [];
-    calcSelectedCustomerKey = "";
-    calcSelectedProductCode = "";
-    deliverySelectedProductCode = "";
-    $("calcCustomerSearch").value = "";
-    $("calcCustomerSummary").innerHTML = "";
-    $("calcProductSearch").value = "";
-    $("deliveryProductSearch").value = "";
-    renderAll();
-    initializePublicMode(true);
-  }
-
   function updateSessionUI(){
-    if(profile){
-      const publicMode = !!profile.publicMode;
-      $("salesmanPill").textContent = publicMode
-        ? "🌐 Public Mode"
-        : "👤 " + profile.salesmanName;
-      $("salesmanPill").classList.toggle("public-pill", publicMode);
-      $("locationPill").textContent =
-        "📍 " + profile.locations.length + " location" + (profile.locations.length === 1 ? "" : "s");
-      $("logoutBtn").hidden = true;
-    }else{
-      $("salesmanPill").textContent = "Not signed in";
-      $("salesmanPill").classList.remove("public-pill");
-      $("locationPill").textContent = "0 locations";
-      $("logoutBtn").hidden = true;
-    }
+    $("salesmanPill").textContent = "🌐 Public Mode";
+    $("salesmanPill").classList.add("public-pill");
+    $("locationPill").textContent =
+      "📍 " + (profile?.locations || []).length + " location" +
+      ((profile?.locations || []).length === 1 ? "" : "s");
   }
 
   async function loadSupportData(force){
@@ -3583,8 +3458,6 @@
      EVENTS
      ========================================================= */
 
-  $("loginForm").addEventListener("submit", handleLogin);
-  $("logoutBtn").addEventListener("click", logout);
 
   document.querySelectorAll("#tabs button").forEach(button => {
     button.addEventListener("click", () => setView(button.dataset.view, true));
