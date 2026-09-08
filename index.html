@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>BIG BROTHER — Sales Support V1.9 Runtime Fix</title>
+<title>BIG BROTHER — Sales Support V1.10 Calculator History & Memory</title>
 <style>
   :root{
     --navy:#173f77;
@@ -1290,10 +1290,193 @@
     border-color:inherit;
   }
 
+
+  /* =========================================================
+     V1.10 — CALCULATOR HISTORY + PERSISTENT MEMORY
+     ========================================================= */
+  .calc-history-card{
+    background:#fff;
+    border:1px solid #dce5ef;
+    border-radius:14px;
+    padding:13px;
+    margin-top:11px;
+  }
+
+  .calc-history-head{
+    display:flex;
+    align-items:flex-start;
+    justify-content:space-between;
+    gap:10px;
+  }
+
+  .calc-history-head h2{
+    margin:0;
+    color:var(--navy);
+    font-size:17px;
+  }
+
+  .calc-history-note{
+    margin-top:4px;
+    color:var(--muted);
+    font-size:10px;
+    line-height:1.4;
+  }
+
+  .calc-history-actions{
+    display:flex;
+    gap:7px;
+    flex-wrap:wrap;
+    justify-content:flex-end;
+  }
+
+  .calc-history-btn{
+    min-height:36px;
+    border:0;
+    border-radius:8px;
+    padding:7px 10px;
+    font-size:11px;
+    font-weight:900;
+  }
+
+  .calc-history-toggle{
+    background:#eaf4ff;
+    color:#245fae;
+  }
+
+  .calc-history-clear{
+    background:#fff0ef;
+    color:#c0392b;
+  }
+
+  .calc-history-panel{
+    margin-top:10px;
+  }
+
+  .calc-history-panel[hidden]{
+    display:none;
+  }
+
+  .calc-history-empty{
+    border:1px dashed #ccd8e6;
+    border-radius:10px;
+    padding:22px 12px;
+    background:#fbfcfe;
+    text-align:center;
+    color:var(--muted);
+    font-size:12px;
+    line-height:1.5;
+  }
+
+  .calc-history-list{
+    display:grid;
+    gap:8px;
+  }
+
+  .calc-history-item{
+    border:1px solid #dfe7f0;
+    border-radius:11px;
+    padding:10px;
+    background:#fff;
+  }
+
+  .calc-history-item-top{
+    display:flex;
+    align-items:flex-start;
+    justify-content:space-between;
+    gap:10px;
+  }
+
+  .calc-history-title{
+    color:var(--navy);
+    font-size:13px;
+    font-weight:900;
+  }
+
+  .calc-history-meta{
+    margin-top:3px;
+    color:var(--muted);
+    font-size:10px;
+    line-height:1.45;
+  }
+
+  .calc-history-total{
+    flex:0 0 auto;
+    color:#0e3f80;
+    font-size:14px;
+    font-weight:1000;
+    white-space:nowrap;
+  }
+
+  .calc-history-products{
+    margin-top:8px;
+    padding-top:8px;
+    border-top:1px solid #edf1f5;
+    display:grid;
+    gap:4px;
+  }
+
+  .calc-history-product{
+    display:flex;
+    justify-content:space-between;
+    gap:10px;
+    color:#526b84;
+    font-size:10px;
+  }
+
+  .calc-history-item-actions{
+    display:flex;
+    gap:7px;
+    flex-wrap:wrap;
+    margin-top:9px;
+  }
+
+  .calc-history-small-btn{
+    min-height:34px;
+    border:0;
+    border-radius:8px;
+    padding:6px 9px;
+    font-size:10px;
+    font-weight:900;
+  }
+
+  .calc-history-load{
+    background:#eaf4ff;
+    color:#245fae;
+  }
+
+  .calc-history-delete{
+    background:#fff0ef;
+    color:#c0392b;
+  }
+
+  @media(max-width:720px){
+    .calc-history-head{
+      display:grid;
+      grid-template-columns:1fr;
+    }
+
+    .calc-history-actions{
+      justify-content:stretch;
+    }
+
+    .calc-history-actions .calc-history-btn{
+      flex:1 1 130px;
+    }
+
+    .calc-history-item-top{
+      display:grid;
+      grid-template-columns:1fr;
+    }
+
+    .calc-history-total{
+      white-space:normal;
+    }
+  }
+
 </style>
 </head>
 <body>
-<!-- V1.9: Runtime startup order fixed. No-login public mode + Calculator + Your Customer load correctly. -->
+<!-- V1.10: Calculator current memory + persistent Calculator History added. Delivery views remain frozen. -->
 
 <div class="app" id="app">
   <div class="topbar">
@@ -1462,6 +1645,35 @@
         <div class="calc-actions">
           <button class="btn danger" type="button" id="calcClearBtn">🗑 Clear All</button>
           <button class="btn calc-new-btn" type="button" id="calcNewBtn">🧮 New Calculation</button>
+        </div>
+      </div>
+
+      <div class="calc-history-card">
+        <div class="calc-history-head">
+          <div>
+            <h2>🕘 Calculator History</h2>
+            <div class="calc-history-note">
+              Current calculation and history stay on this browser/device until the user clears them.
+            </div>
+          </div>
+
+          <div class="calc-history-actions">
+            <button
+              type="button"
+              class="calc-history-btn calc-history-toggle"
+              id="calcHistoryToggleBtn"
+            >Show History</button>
+
+            <button
+              type="button"
+              class="calc-history-btn calc-history-clear"
+              id="calcHistoryClearBtn"
+            >Clear History</button>
+          </div>
+        </div>
+
+        <div class="calc-history-panel" id="calcHistoryPanel" hidden>
+          <div id="calcHistoryList"></div>
         </div>
       </div>
 
@@ -1687,6 +1899,9 @@
   const CACHE_AGE_CUSTOMERS = 60 * 60 * 1000;
   const CACHE_AGE_PRICES = 6 * 60 * 60 * 1000;
   const CALC_RATE_KEY = "bb_sales_support_calc_exchange_rate_v1";
+  const CALC_CURRENT_MEMORY_KEY = "bb_sales_support_calc_current_v1";
+  const CALC_HISTORY_MEMORY_KEY = "bb_sales_support_calc_history_v1";
+  const CALC_HISTORY_MAX_ITEMS = 100;
   const PUBLIC_LOCATIONS_CACHE_KEY = "bb_sales_support_public_locations_v1";
 
   const $ = id => document.getElementById(id);
@@ -1712,6 +1927,9 @@
   let customerPriceCache = {};
   let calcLines = [];
   let calcDiscountUSD = 0;
+  let calcHistory = [];
+  let calcMemoryReady = false;
+  let calcMemorySuppressSave = false;
   let calcSelectedCustomerKey = "";
   let calcSelectedProductCode = "";
   let pendingCalcProduct = null;
@@ -1864,6 +2082,17 @@
     updateSessionUI();
     renderAll();
 
+    loadCalcHistoryMemory();
+    renderCalcHistory();
+
+    // Restore immediately when cached Master data is available.
+    if(
+      (customers.length || products.length) &&
+      !calcMemoryReady
+    ){
+      restoreCalcCurrentMemory();
+    }
+
     try{
       const [locationData, productData, customerData] = await Promise.all([
         jsonp(MASTER_API, {action:"getLocations"}),
@@ -1909,12 +2138,24 @@
 
       updateSessionUI();
       renderAll();
-      showStatus("calcStatus", "Public mode ready. Search customer and products.", false);
+
+      if(!calcMemoryReady){
+        restoreCalcCurrentMemory();
+      }
+
+      if(!localStorage.getItem(CALC_CURRENT_MEMORY_KEY)){
+        showStatus("calcStatus", "Public mode ready. Search customer and products.", false);
+      }
+
       setView(currentView, false);
     }catch(error){
       console.warn("Sales Support public-mode refresh:", error);
       if(!customers.length || !products.length){
         showStatus("calcStatus", error.message || "Could not load Master data.", true);
+      }
+
+      if(!calcMemoryReady){
+        restoreCalcCurrentMemory();
       }
     }
   }
@@ -2301,6 +2542,427 @@
     el.style.color = error ? "#c0392b" : "#6d7f93";
   }
 
+
+  /* =========================================================
+     CALCULATOR MEMORY + HISTORY
+     ========================================================= */
+
+  function calcMemoryLineCopy(line){
+    return {
+      id:clean(line?.id),
+      productCode:clean(line?.productCode),
+      productName:clean(line?.productName),
+      unit:clean(line?.unit),
+      qty:num(line?.qty),
+      usdPrice:num(line?.usdPrice),
+      defaultUsdPrice:num(line?.defaultUsdPrice),
+      manualPrice:!!line?.manualPrice
+    };
+  }
+
+  function calcCurrentMemoryState(){
+    const customer = getCalcCustomer();
+
+    return {
+      savedAt:Date.now(),
+      currency:calcCurrency(),
+      rate:calcRate(),
+      discountUSD:num(calcDiscountUSD),
+      locationCode:clean($("calcLocation")?.value),
+      customerKey:clean(calcSelectedCustomerKey),
+      customerName:clean(customer?.name || $("calcCustomerSearch")?.value),
+      lines:calcLines.map(calcMemoryLineCopy)
+    };
+  }
+
+  function saveCalcCurrentMemory(){
+    if(!calcMemoryReady || calcMemorySuppressSave) return;
+
+    try{
+      localStorage.setItem(
+        CALC_CURRENT_MEMORY_KEY,
+        JSON.stringify(calcCurrentMemoryState())
+      );
+    }catch(_){}
+  }
+
+  function clearCalcCurrentMemory(){
+    try{
+      localStorage.removeItem(CALC_CURRENT_MEMORY_KEY);
+    }catch(_){}
+  }
+
+  function loadCalcHistoryMemory(){
+    try{
+      const parsed = JSON.parse(
+        localStorage.getItem(CALC_HISTORY_MEMORY_KEY) || "[]"
+      );
+
+      calcHistory = Array.isArray(parsed)
+        ? parsed
+        : [];
+    }catch(_){
+      calcHistory = [];
+    }
+  }
+
+  function saveCalcHistoryMemory(){
+    try{
+      localStorage.setItem(
+        CALC_HISTORY_MEMORY_KEY,
+        JSON.stringify(calcHistory)
+      );
+    }catch(_){}
+  }
+
+  function calcHistoryTotals(entry){
+    let subtotalUSD = 0;
+
+    (Array.isArray(entry?.lines) ? entry.lines : [])
+      .forEach(line => {
+        subtotalUSD +=
+          Math.max(0,num(line.qty)) *
+          Math.max(0,num(line.usdPrice));
+      });
+
+    return {
+      subtotalUSD,
+      grandUSD:Math.max(
+        0,
+        subtotalUSD - Math.max(0,num(entry?.discountUSD))
+      )
+    };
+  }
+
+  function calcHistorySnapshot(){
+    const state = calcCurrentMemoryState();
+
+    return {
+      ...state,
+      id:
+        "CALCH-" +
+        Date.now() +
+        "-" +
+        Math.random().toString(36).slice(2,7),
+      createdAt:Date.now()
+    };
+  }
+
+  function archiveCalculatorToHistory(){
+    if(!calcLines.length) return false;
+
+    calcHistory.unshift(
+      calcHistorySnapshot()
+    );
+
+    if(calcHistory.length > CALC_HISTORY_MAX_ITEMS){
+      calcHistory = calcHistory.slice(
+        0,
+        CALC_HISTORY_MAX_ITEMS
+      );
+    }
+
+    saveCalcHistoryMemory();
+    renderCalcHistory();
+    return true;
+  }
+
+  function calcHistoryDate(value){
+    const d = new Date(num(value));
+
+    if(Number.isNaN(d.getTime())) return "-";
+
+    return d.toLocaleString(
+      undefined,
+      {
+        year:"numeric",
+        month:"short",
+        day:"2-digit",
+        hour:"2-digit",
+        minute:"2-digit"
+      }
+    );
+  }
+
+  function renderCalcHistory(){
+    const box = $("calcHistoryList");
+    if(!box) return;
+
+    if(!calcHistory.length){
+      box.innerHTML =
+        '<div class="calc-history-empty">' +
+          'No calculator history yet.<br>' +
+          'Tap <strong>New Calculation</strong> to save the current calculation into history.' +
+        '</div>';
+      return;
+    }
+
+    box.innerHTML =
+      '<div class="calc-history-list">' +
+      calcHistory.map((entry,index) => {
+        const totals = calcHistoryTotals(entry);
+        const entryCurrency =
+          entry.currency === "KHR"
+            ? "KHR"
+            : "USD";
+
+        const entryRate =
+          Math.max(
+            1,
+            num(entry.rate) || 4060
+          );
+
+        const grandDisplay =
+          entryCurrency === "KHR"
+            ? totals.grandUSD * entryRate
+            : totals.grandUSD;
+
+        return `
+          <div class="calc-history-item" data-history-id="${esc(entry.id)}">
+            <div class="calc-history-item-top">
+              <div>
+                <div class="calc-history-title">
+                  Calculation ${calcHistory.length - index}
+                </div>
+
+                <div class="calc-history-meta">
+                  ${esc(calcHistoryDate(entry.createdAt))}
+                  · ${entry.lines.length} item${entry.lines.length === 1 ? "" : "s"}
+                  · ${entryCurrency}
+                  ${entry.customerName ? " · " + esc(entry.customerName) : ""}
+                  ${entry.locationCode ? " · " + esc(entry.locationCode) : ""}
+                </div>
+              </div>
+
+              <div class="calc-history-total">
+                ${formatMoney(grandDisplay,entryCurrency)}
+              </div>
+            </div>
+
+            <div class="calc-history-products">
+              ${entry.lines.map(line => `
+                <div class="calc-history-product">
+                  <span>
+                    ${esc(line.productName)}
+                    × ${num(line.qty).toLocaleString("en-US")}
+                  </span>
+
+                  <strong>
+                    ${
+                      formatMoney(
+                        num(line.qty) *
+                        (
+                          entryCurrency === "KHR"
+                            ? num(line.usdPrice) * entryRate
+                            : num(line.usdPrice)
+                        ),
+                        entryCurrency
+                      )
+                    }
+                  </strong>
+                </div>
+              `).join("")}
+            </div>
+
+            <div class="calc-history-item-actions">
+              <button
+                type="button"
+                class="calc-history-small-btn calc-history-load"
+                data-calc-history-load="${esc(entry.id)}"
+              >Load This Calculation</button>
+
+              <button
+                type="button"
+                class="calc-history-small-btn calc-history-delete"
+                data-calc-history-delete="${esc(entry.id)}"
+              >Delete</button>
+            </div>
+          </div>
+        `;
+      }).join("") +
+      "</div>";
+
+    box.querySelectorAll("[data-calc-history-load]")
+      .forEach(button => {
+        button.addEventListener("click", () => {
+          loadCalculatorHistoryEntry(
+            button.dataset.calcHistoryLoad
+          );
+        });
+      });
+
+    box.querySelectorAll("[data-calc-history-delete]")
+      .forEach(button => {
+        button.addEventListener("click", () => {
+          deleteCalculatorHistoryEntry(
+            button.dataset.calcHistoryDelete
+          );
+        });
+      });
+  }
+
+  function applyCalculatorMemoryState(state){
+    if(!state || typeof state !== "object") return;
+
+    calcMemorySuppressSave = true;
+
+    $("calcCurrency").value =
+      state.currency === "KHR"
+        ? "KHR"
+        : "USD";
+
+    if(num(state.rate) > 0){
+      $("calcRate").value =
+        String(num(state.rate));
+    }
+
+    calcDiscountUSD =
+      Math.max(
+        0,
+        num(state.discountUSD)
+      );
+
+    const requestedLocation =
+      clean(state.locationCode);
+
+    if(
+      requestedLocation &&
+      (profile?.locations || []).some(
+        location =>
+          location.locationCode === requestedLocation
+      )
+    ){
+      $("calcLocation").value =
+        requestedLocation;
+    }
+
+    const requestedCustomerKey =
+      clean(state.customerKey);
+
+    const savedCustomer =
+      customerByKey(requestedCustomerKey);
+
+    if(savedCustomer){
+      calcSelectedCustomerKey =
+        customerKey(savedCustomer);
+
+      $("calcCustomerSearch").value =
+        savedCustomer.name;
+
+      $("calcCustomerSummary").innerHTML =
+        summaryHtml(savedCustomer);
+
+      if(clean(savedCustomer.locationCode)){
+        $("calcLocation").value =
+          savedCustomer.locationCode;
+      }
+    }else{
+      calcSelectedCustomerKey = "";
+      $("calcCustomerSearch").value =
+        clean(state.customerName);
+      $("calcCustomerSummary").innerHTML = "";
+    }
+
+    calcLines =
+      Array.isArray(state.lines)
+        ? state.lines
+            .map(calcMemoryLineCopy)
+            .filter(line =>
+              line.productName &&
+              line.qty > 0
+            )
+        : [];
+
+    handleCalcCurrencyChange();
+
+    $("calcDiscount").value =
+      usdToDisplay(calcDiscountUSD)
+        .toFixed(
+          calcCurrency() === "KHR"
+            ? 0
+            : 2
+        );
+
+    renderCalcLines();
+
+    calcMemorySuppressSave = false;
+  }
+
+  function restoreCalcCurrentMemory(){
+    if(calcMemoryReady) return;
+
+    let saved = null;
+
+    try{
+      saved = JSON.parse(
+        localStorage.getItem(CALC_CURRENT_MEMORY_KEY) || "null"
+      );
+    }catch(_){
+      saved = null;
+    }
+
+    if(saved && typeof saved === "object"){
+      applyCalculatorMemoryState(saved);
+      showStatus(
+        "calcStatus",
+        "Previous calculator work restored.",
+        false
+      );
+    }
+
+    calcMemoryReady = true;
+    saveCalcCurrentMemory();
+  }
+
+  function loadCalculatorHistoryEntry(id){
+    const entry =
+      calcHistory.find(
+        item =>
+          clean(item.id) === clean(id)
+      );
+
+    if(!entry) return;
+
+    applyCalculatorMemoryState(entry);
+    calcMemoryReady = true;
+    saveCalcCurrentMemory();
+
+    $("calcHistoryPanel").hidden = true;
+    $("calcHistoryToggleBtn").textContent =
+      "Show History";
+
+    showStatus(
+      "calcStatus",
+      "Calculator history loaded.",
+      false
+    );
+
+    $("calcProductSearch").focus();
+  }
+
+  function deleteCalculatorHistoryEntry(id){
+    calcHistory =
+      calcHistory.filter(
+        item =>
+          clean(item.id) !== clean(id)
+      );
+
+    saveCalcHistoryMemory();
+    renderCalcHistory();
+  }
+
+  function clearCalculatorHistory(){
+    calcHistory = [];
+
+    try{
+      localStorage.removeItem(
+        CALC_HISTORY_MEMORY_KEY
+      );
+    }catch(_){}
+
+    renderCalcHistory();
+  }
+
   /* =========================================================
      CALCULATOR
      ========================================================= */
@@ -2426,6 +3088,8 @@
     if(loadPrices !== false){
       await selectCalcCustomer(customer);
     }
+
+    saveCalcCurrentMemory();
   }
 
   async function selectCalcCustomer(customerOverride){
@@ -2484,6 +3148,7 @@
     }
 
     renderCalcCustomerSuggestions();
+    saveCalcCurrentMemory();
   }
 
   function handleCalcCustomerInput(){
@@ -2552,12 +3217,14 @@
     }catch(_){}
 
     calculateTotals();
+    saveCalcCurrentMemory();
   }
 
   function setCalcCurrency(currency){
     const next = currency === "KHR" ? "KHR" : "USD";
     $("calcCurrency").value = next;
     handleCalcCurrencyChange();
+    saveCalcCurrentMemory();
   }
 
   function openCalcQtyModal(product, price, hasSpecialPrice = false){
@@ -2924,6 +3591,8 @@
       $("calcEquivalent").textContent =
         "≈ USD " + formatMoney(grandUSD, "USD");
     }
+
+    saveCalcCurrentMemory();
   }
 
   function handleCalcCurrencyChange(){
@@ -2943,7 +3612,7 @@
     renderCalcLines();
   }
 
-  function newCalculation(){
+  function resetCalculationLines(){
     calcLines = [];
     calcDiscountUSD = 0;
     calcSelectedProductCode = "";
@@ -2952,8 +3621,16 @@
     renderCalcLines();
   }
 
+  function newCalculation(){
+    archiveCalculatorToHistory();
+    resetCalculationLines();
+    saveCalcCurrentMemory();
+  }
+
   function clearCalculator(){
-    newCalculation();
+    calcMemorySuppressSave = true;
+
+    resetCalculationLines();
 
     calcSelectedCustomerKey = "";
     $("calcCustomerSearch").value = "";
@@ -2963,6 +3640,9 @@
     $("calcLocation").value = locations.length === 1
       ? locations[0].locationCode
       : "";
+
+    clearCalcCurrentMemory();
+    calcMemorySuppressSave = false;
 
     showStatus(
       "calcStatus",
@@ -3516,6 +4196,18 @@
 
   $("calcClearBtn").addEventListener("click", clearCalculator);
   $("calcNewBtn").addEventListener("click", newCalculation);
+
+  $("calcHistoryToggleBtn").addEventListener("click", () => {
+    const panel = $("calcHistoryPanel");
+    panel.hidden = !panel.hidden;
+
+    $("calcHistoryToggleBtn").textContent =
+      panel.hidden
+        ? "Show History"
+        : "Hide History";
+  });
+
+  $("calcHistoryClearBtn").addEventListener("click", clearCalculatorHistory);
 
   $("calcCurrencyUSD").addEventListener("click", () => setCalcCurrency("USD"));
   $("calcCurrencyKHR").addEventListener("click", () => setCalcCurrency("KHR"));
