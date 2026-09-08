@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>BIG BROTHER — Sales Support V1.8 No Login</title>
+<title>BIG BROTHER — Sales Support V1.9 Runtime Fix</title>
 <style>
   :root{
     --navy:#173f77;
@@ -1293,7 +1293,7 @@
 </style>
 </head>
 <body>
-<!-- V1.8: Sales Support login/security step removed temporarily. Public Master data loads directly. -->
+<!-- V1.9: Runtime startup order fixed. No-login public mode + Calculator + Your Customer load correctly. -->
 
 <div class="app" id="app">
   <div class="topbar">
@@ -1718,10 +1718,11 @@
   let pendingCalcPriceContext = null;
   let deliverySelectedProductCode = "";
   let deliveryLines = [];
-  let currentView = resolveInitialView();
 
   const FROZEN_VIEWS = new Set(["request-delivery","successful-delivery"]);
   function isFrozenView(view){ return FROZEN_VIEWS.has(clean(view)); }
+
+  let currentView = resolveInitialView();
 
   function resolveInitialView(){
     const view = clean(params.get("view"));
