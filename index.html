@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>BIG BROTHER — Sales Support V1.6 Public Fast Calculator</title>
+<title>BIG BROTHER — Sales Support V1.7 Frozen Delivery Views</title>
 <style>
   :root{
     --navy:#173f77;
@@ -1271,6 +1271,26 @@
     font-size:12px;
   }
 
+
+  /* =========================================================
+     V1.7 — TEMPORARILY FROZEN DELIVERY VIEWS
+     Keep all underlying code for later; only navigation is locked.
+     ========================================================= */
+  .tabs button.frozen-view,
+  .tabs button:disabled{
+    opacity:.42;
+    cursor:not-allowed;
+    pointer-events:none;
+    filter:grayscale(.35);
+  }
+
+  .tabs button.frozen-view:hover,
+  .tabs button:disabled:hover{
+    background:inherit;
+    color:inherit;
+    border-color:inherit;
+  }
+
 </style>
 </head>
 <body>
@@ -1290,9 +1310,9 @@
 
   <div class="tabs" id="tabs">
     <button type="button" data-view="calculator">🧮 Calculator</button>
-    <button type="button" data-view="request-delivery">🚚 Request Delivery</button>
+    <button type="button" class="frozen-view" data-view="request-delivery" disabled aria-disabled="true" title="Temporarily unavailable">🚚 Request Delivery</button>
     <button type="button" data-view="your-customer">👥 Your Customer</button>
-    <button type="button" data-view="successful-delivery">✅ Successful Delivery</button>
+    <button type="button" class="frozen-view" data-view="successful-delivery" disabled aria-disabled="true" title="Temporarily unavailable">✅ Successful Delivery</button>
   </div>
 
   <section class="view" id="view-calculator">
@@ -1717,12 +1737,15 @@
   let deliveryLines = [];
   let currentView = resolveInitialView();
 
+  const FROZEN_VIEWS = new Set(["request-delivery","successful-delivery"]);
+  function isFrozenView(view){ return FROZEN_VIEWS.has(clean(view)); }
+
   function resolveInitialView(){
     const view = clean(params.get("view"));
     const shell = clean(params.get("shellModule"));
 
     if (["calculator","request-delivery","your-customer","successful-delivery"].includes(view)) {
-      return view;
+      return isFrozenView(view) ? "calculator" : view;
     }
 
     const byModule = {
@@ -1731,7 +1754,9 @@
       "sales-support-your-customer":"your-customer",
       "sales-support-successful-delivery":"successful-delivery"
     };
-    return byModule[shell] || "calculator";
+
+    const resolved = byModule[shell] || "calculator";
+    return isFrozenView(resolved) ? "calculator" : resolved;
   }
 
   function cacheSet(key, value){
@@ -3481,7 +3506,10 @@
      ========================================================= */
 
   function setView(view, updateUrl){
-    if(!["calculator","request-delivery","your-customer","successful-delivery"].includes(view)){
+    if(
+      !["calculator","request-delivery","your-customer","successful-delivery"].includes(view) ||
+      isFrozenView(view)
+    ){
       view = "calculator";
     }
 
