@@ -1,139 +1,87 @@
-/* BIG BROTHER — Sales Support Customer Pricing Patch V1
- * Runs in the outer loader and patches the preserved V1.10 source before execution.
+/* BIG BROTHER — Sales Support Customer Price Loader V2
+ * One Customer + One Product = one saved selling price.
+ * KHR display uses the calculator exchange rate from that same saved USD price.
  */
 (function(){
   'use strict';
 
   function replaceBetween(text,startMarker,endMarker,replacement,label){
     const start=text.indexOf(startMarker);
-    if(start<0)throw new Error('Sales Support pricing patch missing '+label+' start marker.');
+    if(start<0)throw new Error('Sales Support customer-price patch missing '+label+' start marker.');
     const end=text.indexOf(endMarker,start+startMarker.length);
-    if(end<0)throw new Error('Sales Support pricing patch missing '+label+' end marker.');
+    if(end<0)throw new Error('Sales Support customer-price patch missing '+label+' end marker.');
     return text.slice(0,start)+replacement+'\n\n'+text.slice(end);
   }
 
   function patch(html){
     let out=String(html||'');
 
-    /* Preserve Default KHR from the Supabase master-product response. */
-    if(!out.includes('            usdPrice:num(product.usdPrice),')){
-      throw new Error('Sales Support main product mapping marker was not found.');
-    }
-    out=out.replaceAll(
-      '            usdPrice:num(product.usdPrice),',
-      '            usdPrice:num(product.usdPrice),\n            khrPrice:num(product.khrPrice ?? product.priceKHR),'
-    );
-    out=out.replaceAll(
-      '            usdPrice:num(p.usdPrice),',
-      '            usdPrice:num(p.usdPrice),\n            khrPrice:num(p.khrPrice ?? p.priceKHR),'
-    );
-
-    /* Keep both currencies + per-currency custom flags in the customer price cache. */
+    /* Preserve the backend flag that tells us a real customer-price row exists. */
     const normalized=`        defaultPriceUSD:num(p.defaultPriceUSD),
         customerPriceUSD:num(p.customerPriceUSD),
         isCustomPrice:!!p.isCustomPrice`;
-    if(!out.includes(normalized))throw new Error('Sales Support customer-price normalization marker was not found.');
+
+    if(!out.includes(normalized)){
+      throw new Error('Sales Support customer-price normalization marker was not found.');
+    }
+
     out=out.replace(
       normalized,
       `        defaultPriceUSD:num(p.defaultPriceUSD),
         customerPriceUSD:num(p.customerPriceUSD),
-        defaultPriceKHR:num(p.defaultPriceKHR),
-        customerPriceKHR:num(p.customerPriceKHR),
-        isCustomPriceUSD:!!p.isCustomPriceUSD,
-        isCustomPriceKHR:!!p.isCustomPriceKHR,
+        hasCustomerPrice:p.hasCustomerPrice === true || String(p.hasCustomerPrice).toLowerCase() === "true",
         isCustomPrice:!!p.isCustomPrice`
     );
 
-    const pricingBlock=`function bbCalcConfiguredPricing(product, saved){
-    const currency = calcCurrency();
-    const usd = num(saved ? saved.customerPriceUSD : product?.usdPrice);
-    let khr = num(saved ? saved.customerPriceKHR : product?.khrPrice);
-
-    /* A zero KHR value means it has not been configured yet. Keep old conversion as fallback. */
-    if(!(khr > 0)) khr = usd * calcRate();
-
-    const displayPrice = currency === "KHR" ? khr : usd;
-    return {
-      price: currency === "KHR" ? displayPrice / calcRate() : displayPrice,
-      displayPrice:displayPrice,
-      hasSpecialPrice: saved
-        ? (currency === "KHR" ? !!saved.isCustomPriceKHR : !!saved.isCustomPriceUSD)
-        : false
-    };
-  }
-
-  async function bbRefreshCalcDatabasePrices(){
+    /*
+     * Customer selected:
+     * - saved customer price exists and is > 0 -> use it automatically
+     * - otherwise fall back to product default and keep the manual-price popup
+     */
+    const resolver=`  async function resolveCalcProductPricing(product){
     const customer = getCalcCustomer();
-    let priceMap = {};
 
-    if(customer){
-      try{
-        const data = await getCustomerPrices(customer);
-        (data?.products || []).forEach(p => {
-          priceMap[String(p.productCode || "").toUpperCase()] = p;
-        });
-      }catch(error){
-        showStatus("calcStatus", error?.message || "Could not refresh customer prices.", true);
-      }
+    if(!customer){
+      return {
+        price:product ? product.usdPrice : 0,
+        hasSpecialPrice:false,
+        source:"PRODUCT_DEFAULT"
+      };
     }
-
-    calcLines.forEach(line => {
-      if(line.manualPrice) return;
-      const product = productByCode(line.productCode);
-      if(!product) return;
-      const saved = priceMap[String(line.productCode || "").toUpperCase()] || null;
-      const pricing = bbCalcConfiguredPricing(product, saved);
-      line.usdPrice = pricing.price;
-      line.defaultUsdPrice = pricing.price;
-    });
-
-    renderCalcLines();
-    saveCalcCurrentMemory();
-  }
-
-  async function resolveCalcProductPricing(product){
-    if(!product){
-      return {price:0,displayPrice:0,hasSpecialPrice:false};
-    }
-
-    const customer = getCalcCustomer();
-    if(!customer) return bbCalcConfiguredPricing(product, null);
 
     try{
       const data = await getCustomerPrices(customer);
-      const saved = (data?.products || []).find(
-        p => String(p.productCode || "").toUpperCase() === String(product.code || "").toUpperCase()
+      const saved = (data.products || []).find(
+        p => p.productCode.toUpperCase() === product.code.toUpperCase()
       );
-      return bbCalcConfiguredPricing(product, saved || null);
-    }catch(_){
-      return bbCalcConfiguredPricing(product, null);
+
+      if(saved && saved.hasCustomerPrice && num(saved.customerPriceUSD) > 0){
+        return {
+          price:num(saved.customerPriceUSD),
+          hasSpecialPrice:true,
+          source:"CUSTOMER_PRICE"
+        };
+      }
+    }catch(error){
+      console.warn("Customer price lookup failed:", error);
     }
+
+    return {
+      price:product ? product.usdPrice : 0,
+      hasSpecialPrice:false,
+      source:"PRODUCT_DEFAULT"
+    };
   }`;
 
     out=replaceBetween(
       out,
       '  async function resolveCalcProductPricing(product){',
       '  function loadCalcRatePreference(){',
-      '  '+pricingBlock.replace(/\n/g,'\n  '),
+      resolver,
       'calculator pricing resolver'
     );
 
-    const resetLines=`    calcLines.forEach(line => {
-      if(!line.manualPrice) line.usdPrice = line.defaultUsdPrice;
-    });`;
-    if(!out.includes(resetLines))throw new Error('Sales Support customer reset-pricing marker was not found.');
-    out=out.replace(
-      resetLines,
-      `    calcLines.forEach(line => {
-      if(line.manualPrice) return;
-      const product = productByCode(line.productCode);
-      if(!product) return;
-      const pricing = bbCalcConfiguredPricing(product, null);
-      line.usdPrice = pricing.price;
-      line.defaultUsdPrice = pricing.price;
-    });`
-    );
-
+    /* Existing lines must also change immediately when customer changes. */
     const customerApply=`      calcLines.forEach(line => {
         const saved = priceMap[line.productCode.toUpperCase()];
         if(saved && !line.manualPrice){
@@ -141,52 +89,61 @@
           line.defaultUsdPrice = saved.customerPriceUSD;
         }
       });`;
-    if(!out.includes(customerApply))throw new Error('Sales Support customer apply-pricing marker was not found.');
+
+    if(!out.includes(customerApply)){
+      throw new Error('Sales Support selected-customer pricing marker was not found.');
+    }
+
     out=out.replace(
       customerApply,
-      `      calcLines.forEach(line => {
+      `      let configuredCount = 0;
+      calcLines.forEach(line => {
         if(line.manualPrice) return;
+        const saved = priceMap[line.productCode.toUpperCase()];
         const product = productByCode(line.productCode);
-        if(!product) return;
-        const saved = priceMap[String(line.productCode || "").toUpperCase()] || null;
-        const pricing = bbCalcConfiguredPricing(product, saved);
-        line.usdPrice = pricing.price;
-        line.defaultUsdPrice = pricing.price;
+
+        if(saved && saved.hasCustomerPrice && num(saved.customerPriceUSD) > 0){
+          line.usdPrice = num(saved.customerPriceUSD);
+          line.defaultUsdPrice = num(saved.customerPriceUSD);
+          configuredCount++;
+        }else if(product){
+          line.usdPrice = num(product.usdPrice);
+          line.defaultUsdPrice = num(product.usdPrice);
+        }
       });`
     );
 
-    /* Currency switch = re-resolve the customer's price for that currency. */
-    const currencyEnd=`    renderCalcLines();
-  }
+    const statusBlock=`      showStatus(
+        "calcStatus",
+        \`${'${data.products.length}'} product prices loaded for ${'${customer.name}'}.\`,
+        false
+      );`;
 
-  function resetCalculationLines(){`;
-    if(!out.includes(currencyEnd))throw new Error('Sales Support currency-change marker was not found.');
-    out=out.replace(
-      currencyEnd,
-      `    renderCalcLines();
-    bbRefreshCalcDatabasePrices().catch(() => {});
-  }
-
-  function resetCalculationLines(){`
-    );
-
-    /* If rate changes while KHR is selected, keep configured KHR prices fixed. */
-    const rateListener='  $("calcRate").addEventListener("input", calculateTotals);';
-    if(out.includes(rateListener)){
+    if(out.includes(statusBlock)){
       out=out.replace(
-        rateListener,
-        '  $("calcRate").addEventListener("input", () => { calculateTotals(); if(calcCurrency() === "KHR") bbRefreshCalcDatabasePrices().catch(() => {}); });'
+        statusBlock,
+        `      const savedCount = (data.products || []).filter(
+        p => p.hasCustomerPrice && num(p.customerPriceUSD) > 0
+      ).length;
+      showStatus(
+        "calcStatus",
+        savedCount
+          ? savedCount + " customer prices loaded for " + customer.name + "."
+          : "No saved customer prices yet for " + customer.name + ". Product default/manual price will be used.",
+        false
+      );`
       );
     }
 
-    /* Your Customer price panel shows both stored currencies. */
+    /* Your Customer panel labels the value clearly as the saved customer price. */
     out=out.replaceAll(
       '${formatMoney(p.customerPriceUSD,"USD")}',
-      '${formatMoney(p.customerPriceUSD,"USD")}<br>${formatMoney(p.customerPriceKHR,"KHR")}'
+      '${formatMoney(p.customerPriceUSD,"USD")}${p.hasCustomerPrice ? " · Customer Price" : " · Default"}'
     );
 
     return out;
   }
 
+  /* Keep the existing global name so the loader remains rollback-safe. */
   window.BBSalesSupportDualCurrencyPatch={patch};
 })();
