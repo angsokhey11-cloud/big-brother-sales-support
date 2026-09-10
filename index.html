@@ -10,21 +10,28 @@ html,body{margin:0;min-height:100%;background:#eef3f8;font-family:Arial,sans-ser
 .bb-card{background:#fff;border:1px solid #d9e2ef;border-radius:14px;padding:22px 28px;box-shadow:0 8px 30px #173a6615;color:#17457a;font-weight:800}
 .bb-sub{margin-top:6px;color:#6b7280;font-size:12px;font-weight:600}
 </style>
+<script src="dual-currency-sales-support-patch.js?v=20260910-1"></script>
 </head>
 <body>
-<div class="bb-loader"><div class="bb-card">Loading BIG BROTHER Sales Support…<div class="bb-sub">Secure Supabase database</div></div></div>
+<div class="bb-loader"><div class="bb-card">Loading BIG BROTHER Sales Support…<div class="bb-sub">Supabase · customer-specific USD + KHR pricing</div></div></div>
 <script>
 (async function(){
   try{
-    const response=await fetch('legacy-google-v1.10.html?v=20260910-1',{cache:'no-store'});
+    const response=await fetch('legacy-google-v1.10.html?v=20260910-2',{cache:'no-store'});
     if(!response.ok)throw new Error('Could not load Sales Support source.');
     let html=await response.text();
 
-    const adapter='<scr'+'ipt src="supabase-sales-support-adapter.js?v=20260910-1"></scr'+'ipt>';
+    if(!window.BBSalesSupportDualCurrencyPatch){
+      throw new Error('Sales Support dual-currency pricing patch did not load.');
+    }
+    html=window.BBSalesSupportDualCurrencyPatch.patch(html);
+
+    const adapter='<scr'+'ipt src="supabase-sales-support-adapter.js?v=20260910-2"></scr'+'ipt>';
     const headClose=html.toLowerCase().indexOf('</head>');
     if(headClose<0)throw new Error('Sales Support source is missing </head>.');
     html=html.slice(0,headClose)+adapter+'\n'+html.slice(headClose);
 
+    /* Always pass the permanent Customer ID for exact price lookup. */
     html=html.replaceAll(
       'action:"getCustomerProductPrices",\n      customer:customer.name',
       'action:"getCustomerProductPrices",\n      customerId:customer.customerId,\n      customer:customer.name'
@@ -37,11 +44,11 @@ html,body{margin:0;min-height:100%;background:#eef3f8;font-family:Arial,sans-ser
 
     html=html.replace(
       '<title>BIG BROTHER — Sales Support V1.10 Calculator History & Memory</title>',
-      '<title>BIG BROTHER — Sales Support Supabase</title>'
+      '<title>BIG BROTHER — Sales Support Supabase Customer Pricing</title>'
     );
     html=html.replaceAll('Delivery Database','Supabase Delivery Database');
     html=html.replaceAll('🌐 Public Mode','🔒 Supabase Secure');
-    html=html.replaceAll('Public mode ready. Search customer and products.','Supabase ready. Search customer and products.');
+    html=html.replaceAll('Public mode ready. Search customer and products.','Supabase ready. Select customer to use customer-specific USD/KHR prices.');
 
     document.open();
     document.write(html);
