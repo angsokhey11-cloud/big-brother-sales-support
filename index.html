@@ -40,6 +40,8 @@ html,body{margin:0;min-height:100%;background:#eef3f8;font-family:Arial,sans-ser
       '<title>BIG BROTHER — Sales Support Supabase</title>'
     );
     html=html.replaceAll('Delivery Database','Supabase Delivery Database');
+    html=html.replaceAll('🌐 Public Mode','🔒 Supabase Secure');
+    html=html.replaceAll('Public mode ready. Search customer and products.','Supabase ready. Search customer and products.');
 
     document.open();
     document.write(html);
