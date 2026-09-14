@@ -53,6 +53,145 @@ html,body{margin:0;min-height:100%;background:#eef3f8;font-family:Arial,sans-ser
       'Supabase ready. Select a customer and its saved product prices will load automatically.'
     );
 
+    /* MOBILE CALCULATOR ONLY — Desktop source and Desktop layout remain unchanged. */
+    let mobileCalculator=false;
+    try{
+      const params=new URLSearchParams(location.search);
+      const inMobileShell=window.top!==window && /\/mobile\.html$/i.test(window.top.location.pathname);
+      mobileCalculator=inMobileShell && params.get('view')==='calculator';
+    }catch(_){mobileCalculator=false;}
+
+    if(mobileCalculator){
+      const mobileStyle=`<style id="bb-mobile-calculator-v2">
+        html,body{background:#eef4fa!important;overflow-x:hidden!important}
+        body{padding:0!important}
+        .app{width:100%!important;max-width:none!important;margin:0!important;padding:7px 8px 18px!important}
+        .topbar,.tabs{display:none!important}
+        #view-calculator{margin:0!important}
+        .calc-shell{gap:8px!important}
+        .calc-control-card,.calc-products-card,.calc-total-card,.calc-history-card{border-radius:12px!important;padding:9px!important;margin:0!important;box-shadow:none!important}
+
+        .calc-primary-grid{display:grid!important;grid-template-columns:minmax(0,1fr) minmax(0,1fr)!important;grid-template-areas:'customer customer' 'location currency' 'rate rate'!important;gap:7px 8px!important;align-items:end!important}
+        .calc-primary-grid>div:nth-child(1){grid-area:location!important}
+        .calc-primary-grid>div:nth-child(2){grid-area:customer!important}
+        .calc-primary-grid>div:nth-child(3){grid-area:currency!important}
+        .calc-primary-grid>div:nth-child(4){grid-area:rate!important}
+        .calc-field-label{font-size:9px!important;line-height:1!important;margin-bottom:4px!important;letter-spacing:.15px!important}
+        .calc-control-card select,.calc-control-card input{min-height:40px!important;height:40px!important;padding:7px 9px!important;border-radius:9px!important;font-size:14px!important}
+        .customer-picker-icon{right:10px!important;font-size:13px!important}
+        .calc-currency-wrap{min-height:40px!important;height:40px!important;padding:3px!important;gap:4px!important;border-radius:9px!important}
+        .calc-currency-btn{min-height:32px!important;height:32px!important;padding:4px 6px!important;font-size:12px!important;border-radius:7px!important}
+        .calc-rate-card{min-height:0!important;padding:6px 8px!important;border-radius:9px!important}
+        .calc-rate-top{margin-bottom:4px!important;align-items:center!important}
+        .calc-rate-title{font-size:9px!important}
+        .calc-rate-fixed{font-size:8px!important}
+        .calc-rate-row{gap:6px!important}
+        .calc-rate-row>span{font-size:15px!important}
+        .calc-rate-row input{min-height:36px!important;height:36px!important;padding:5px 8px!important;font-size:17px!important;border-radius:8px!important}
+        .calc-status-compact{min-height:13px!important;margin-top:5px!important;font-size:8.5px!important;line-height:1.2!important}
+        #calcCustomerSummary{display:none!important}
+
+        #bbCalcCompactBar{display:none;background:#fff;border:1px solid #dbe5f0;border-radius:12px;padding:8px 9px;min-height:58px;align-items:center;grid-template-columns:minmax(0,1fr) auto;gap:8px}
+        #bbCalcCompactBar.show{display:grid!important}
+        .bb-calc-summary-main{min-width:0}
+        .bb-calc-summary-customer{display:block;color:#173f77;font-size:13px;font-weight:900;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+        .bb-calc-summary-meta{display:block;margin-top:3px;color:#60758c;font-size:10px;font-weight:800;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+        .bb-calc-edit{border:0;background:#e9f3ff;color:#1768d5;min-height:38px;padding:7px 12px;border-radius:9px;font-size:11px;font-weight:900}
+        #bbCalcDone{display:none;width:100%;min-height:38px;margin-top:7px;border:0;border-radius:9px;background:#eaf3ff;color:#1768d5;font-size:11px;font-weight:900}
+        .bb-mobile-editing #bbCalcDone{display:block!important}
+
+        .calc-products-head{margin-bottom:7px!important;align-items:center!important}
+        .calc-products-head h2{font-size:15px!important;margin:0!important}
+        .calc-product-count{font-size:9px!important;margin-top:1px!important}
+        .calc-product-search-row{margin-bottom:7px!important;gap:6px!important}
+        .calc-product-search-row .product-picker input{min-height:40px!important;height:40px!important;padding:7px 34px 7px 9px!important;font-size:14px!important;border-radius:9px!important}
+        .calc-product-search-row .btn{min-height:40px!important;padding:7px 10px!important;font-size:10px!important}
+        .calc-product-empty{padding:18px 10px!important;min-height:84px!important;font-size:10px!important;line-height:1.35!important}
+        .calc-product-list{gap:6px!important}
+        .calc-product-row{display:grid!important;grid-template-columns:minmax(0,1fr) auto auto!important;grid-template-areas:'main total delete' 'price qty qty'!important;gap:5px 7px!important;padding:8px!important;border-radius:10px!important;align-items:center!important}
+        .calc-product-main{grid-area:main!important;min-width:0!important}
+        .calc-product-main strong{font-size:12px!important;line-height:1.15!important;white-space:nowrap!important;overflow:hidden!important;text-overflow:ellipsis!important}
+        .calc-product-main small{font-size:9px!important;margin-top:2px!important}
+        .calc-price-editor{grid-area:price!important;min-width:0!important}
+        .calc-price-editor input,.calc-price-input{min-height:34px!important;height:34px!important;max-width:105px!important;padding:5px 7px!important;font-size:12px!important;border-radius:7px!important}
+        .calc-qty-stepper{grid-area:qty!important;justify-self:end!important}
+        .calc-qty-stepper button{min-width:34px!important;height:34px!important;min-height:34px!important;padding:0 6px!important;font-size:12px!important}
+        .calc-line-total{grid-area:total!important;min-width:0!important;text-align:right!important;font-size:12px!important}
+        .calc-delete-btn{grid-area:delete!important;justify-self:end!important;width:34px!important;height:34px!important;min-height:34px!important;padding:0!important;font-size:13px!important}
+
+        .calc-total-card{padding:8px 9px!important}
+        .calc-total-layout{grid-template-columns:1fr!important;gap:6px!important}
+        .calc-discount-card{padding:8px 9px!important;border-radius:10px!important}
+        .calc-subtotal-line{padding:0 0 6px!important;font-size:11px!important}
+        .calc-discount-row{grid-template-columns:auto minmax(0,1fr)!important;gap:8px!important;align-items:center!important}
+        .calc-discount-label{font-size:11px!important;white-space:nowrap!important}
+        .calc-discount-input-wrap{grid-template-columns:auto minmax(0,1fr)!important;gap:5px!important}
+        .calc-discount-input-wrap input,.calc-discount-input-wrap select{min-height:36px!important;height:36px!important;font-size:12px!important;padding:5px 7px!important}
+        .calc-total-summary{padding:8px 10px!important;border-radius:10px!important;min-height:56px!important}
+        .calc-total-summary small{font-size:9px!important}
+        .calc-total-summary strong{font-size:22px!important}
+        .calc-actions{gap:6px!important;margin-top:7px!important}
+        .calc-actions .btn{min-height:40px!important;padding:7px 10px!important;font-size:10px!important}
+
+        @media(max-width:380px){
+          .app{padding:6px 6px 16px!important}
+          .calc-primary-grid{gap:6px!important}
+          .calc-control-card,.calc-products-card,.calc-total-card,.calc-history-card{padding:8px!important}
+          .calc-product-row{grid-template-columns:minmax(0,1fr) auto!important;grid-template-areas:'main delete' 'price total' 'qty qty'!important}
+          .calc-line-total{text-align:right!important}
+        }
+      </style>`;
+
+      const mobileScript=`<scr`+`ipt id="bb-mobile-calculator-script">(function(){
+        'use strict';
+        let manualExpanded=false,lastCount=0;
+        const q=s=>document.querySelector(s);
+        const clean=v=>String(v==null?'':v).trim();
+        function selectedText(sel){if(!sel)return'';const o=sel.options&&sel.selectedIndex>=0?sel.options[sel.selectedIndex]:null;return clean(o?o.textContent:sel.value);}
+        function currency(){const s=q('#calcCurrency');return s&&s.value==='KHR'?'KHR':'USD';}
+        function ensureUi(){
+          const shell=q('#view-calculator .calc-shell'),card=q('#view-calculator .calc-control-card');if(!shell||!card)return false;
+          let bar=q('#bbCalcCompactBar');
+          if(!bar){bar=document.createElement('div');bar.id='bbCalcCompactBar';bar.innerHTML='<div class="bb-calc-summary-main"><strong class="bb-calc-summary-customer">Customer</strong><span class="bb-calc-summary-meta">—</span></div><button type="button" class="bb-calc-edit">✎ Edit</button>';shell.insertBefore(bar,card);bar.querySelector('.bb-calc-edit').addEventListener('click',()=>{manualExpanded=true;sync();});}
+          let done=q('#bbCalcDone');
+          if(!done){done=document.createElement('button');done.type='button';done.id='bbCalcDone';done.textContent='Done · Back to Products';card.appendChild(done);done.addEventListener('click',()=>{manualExpanded=false;sync();q('#calcProductSearch')?.focus();});}
+          return true;
+        }
+        function updateBar(){
+          const bar=q('#bbCalcCompactBar');if(!bar)return;
+          const customer=clean(q('#calcCustomerSearch')?.value)||'Customer';
+          const location=selectedText(q('#calcLocation'))||'Location';
+          const rate=clean(q('#calcRate')?.value)||'—';
+          bar.querySelector('.bb-calc-summary-customer').textContent=customer;
+          bar.querySelector('.bb-calc-summary-meta').textContent=location+'  ·  '+currency()+'  ·  '+rate;
+        }
+        function sync(){
+          if(!ensureUi())return;
+          const card=q('#view-calculator .calc-control-card'),bar=q('#bbCalcCompactBar'),lines=q('#calcLines');
+          const count=lines?lines.querySelectorAll('.calc-product-row').length:0;
+          if(count>0&&lastCount===0&&!manualExpanded)manualExpanded=false;
+          if(count===0)manualExpanded=false;
+          const collapsed=count>0&&!manualExpanded;
+          card.style.display=collapsed?'none':'';
+          card.classList.toggle('bb-mobile-editing',count>0&&manualExpanded);
+          bar.classList.toggle('show',collapsed);
+          updateBar();lastCount=count;
+        }
+        function observe(){
+          const lines=q('#calcLines');if(lines&&!lines.__bbMobileCalcObserved){lines.__bbMobileCalcObserved=true;new MutationObserver(()=>requestAnimationFrame(sync)).observe(lines,{childList:true,subtree:true});}
+          ['calcCustomerSearch','calcLocation','calcCurrency','calcRate'].forEach(id=>{const el=document.getElementById(id);if(el&&!el.__bbMobileCalcBound){el.__bbMobileCalcBound=true;el.addEventListener('input',updateBar);el.addEventListener('change',updateBar);}});
+          ['calcCurrencyUSD','calcCurrencyKHR'].forEach(id=>{const el=document.getElementById(id);if(el&&!el.__bbMobileCalcBound){el.__bbMobileCalcBound=true;el.addEventListener('click',()=>setTimeout(updateBar,0));}});
+        }
+        function boot(){if(!ensureUi()){setTimeout(boot,80);return;}observe();sync();setTimeout(sync,250);setTimeout(sync,800);}
+        if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',boot,{once:true});else boot();
+      })();</scr`+`ipt>`;
+
+      const hc=html.toLowerCase().indexOf('</head>');
+      html=html.slice(0,hc)+mobileStyle+'\n'+html.slice(hc);
+      const bc=html.toLowerCase().lastIndexOf('</body>');
+      html=html.slice(0,bc)+mobileScript+'\n'+html.slice(bc);
+    }
+
     document.open();
     document.write(html);
     document.close();
