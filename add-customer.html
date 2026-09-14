@@ -1,0 +1,234 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>BIG BROTHER — Add Customer</title>
+<style>
+:root{--navy:#17457a;--blue:#2f6fed;--bg:#eef3f8;--card:#fff;--text:#172b4d;--muted:#667085;--border:#d9e2ef;--green:#18864b;--red:#c62828;--amber:#b56b00}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--text);font-family:Arial,Helvetica,sans-serif}.app{max-width:1180px;margin:auto;padding:24px}.hero{display:flex;justify-content:space-between;gap:18px;align-items:flex-start;margin-bottom:18px}.hero h1{margin:0;color:var(--navy);font-size:28px}.hero p{margin:7px 0 0;color:var(--muted);font-size:13px;line-height:1.5}.badge{background:#e7f0fc;border:1px solid #c6d9f3;color:var(--navy);border-radius:999px;padding:9px 13px;font-size:11px;font-weight:800;white-space:nowrap}.grid{display:grid;grid-template-columns:minmax(0,1.2fr) minmax(340px,.8fr);gap:16px}.card{background:#fff;border:1px solid var(--border);border-radius:14px;box-shadow:0 4px 16px rgba(16,42,67,.06)}.card-head{padding:15px 17px;border-bottom:1px solid var(--border)}.card-head strong{color:var(--navy);font-size:15px}.card-head span{display:block;color:var(--muted);font-size:11px;margin-top:4px}.card-body{padding:17px}.fields{display:grid;grid-template-columns:1fr 1fr;gap:13px}.field.full{grid-column:1/-1}.field label{display:block;color:#53657d;font-size:11px;font-weight:800;margin-bottom:6px;text-transform:uppercase;letter-spacing:.35px}.field input,.field select,.field textarea{width:100%;border:1px solid #cfd8e5;border-radius:9px;padding:10px 11px;font:inherit;color:var(--text);background:#fff;outline:none}.field input,.field select{height:42px}.field textarea{min-height:86px;resize:vertical}.field input:focus,.field select:focus,.field textarea:focus{border-color:var(--blue);box-shadow:0 0 0 3px rgba(47,111,237,.10)}.required{color:var(--red)}.hint{font-size:10px;color:var(--muted);margin-top:5px;line-height:1.4}.gps-box{border:1px solid #cfe0f7;background:#f7fbff;border-radius:12px;padding:14px}.gps-title{display:flex;align-items:center;justify-content:space-between;gap:10px}.gps-title strong{color:var(--navy)}.gps-status{font-size:11px;font-weight:800;color:var(--muted)}.gps-status.good{color:var(--green)}.gps-status.warn{color:var(--amber)}.gps-status.bad{color:var(--red)}.gps-actions{display:flex;gap:8px;margin-top:12px}.btn{border:0;border-radius:9px;padding:10px 14px;font-weight:800;cursor:pointer;font-size:12px}.btn.primary{background:var(--navy);color:#fff}.btn.secondary{background:#e8eef6;color:var(--navy)}.btn.location{background:#1769aa;color:#fff;flex:1}.btn:disabled{opacity:.55;cursor:wait}.coords{display:grid;grid-template-columns:1fr 1fr;gap:9px;margin-top:12px}.coord{background:#fff;border:1px solid var(--border);border-radius:9px;padding:9px 10px}.coord small{display:block;color:var(--muted);font-size:9px;font-weight:800;text-transform:uppercase}.coord strong{display:block;margin-top:4px;color:var(--navy);font-size:12px;word-break:break-all}.accuracy{margin-top:10px;padding:9px 10px;background:#fff;border:1px solid var(--border);border-radius:9px;font-size:11px;color:var(--muted)}.map-row{margin-top:10px;display:flex;gap:8px;align-items:center}.map-link{flex:1;min-width:0;border:1px solid var(--border);background:#fff;border-radius:9px;padding:9px 10px;color:#526276;font-size:10px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.privacy{margin-top:12px;color:var(--muted);font-size:10px;line-height:1.45}.profile{padding:11px 13px;background:#f8fbff;border:1px solid var(--border);border-radius:10px;color:#526276;font-size:11px;line-height:1.5}.profile strong{color:var(--navy)}.savebar{display:flex;justify-content:flex-end;gap:8px;margin-top:16px}.savebar .btn{min-width:150px}.message{margin-bottom:14px;border-radius:10px;padding:11px 13px;font-size:12px;font-weight:700}.message.error{background:#fff0f0;border:1px solid #f2c6c6;color:var(--red)}.message.success{background:#edf9f2;border:1px solid #ccebd8;color:#176c43}.result{margin-top:14px;border:1px solid #ccebd8;background:#f4fbf7;border-radius:12px;padding:14px;display:none}.result.show{display:block}.result h3{margin:0 0 9px;color:var(--green);font-size:15px}.result-row{display:flex;justify-content:space-between;gap:12px;padding:5px 0;font-size:11px;border-bottom:1px solid #e3f0e8}.result-row:last-child{border-bottom:0}.result-row span{color:var(--muted)}.result-row strong{text-align:right;word-break:break-word}.footer{text-align:center;color:#98a2b3;font-size:10px;margin:20px 0 4px}
+@media(max-width:880px){.app{padding:16px}.grid{grid-template-columns:1fr}.hero{flex-direction:column}.badge{white-space:normal}.fields{grid-template-columns:1fr}.field.full{grid-column:auto}}
+@media(max-width:520px){.app{padding:12px}.hero h1{font-size:23px}.coords{grid-template-columns:1fr}.gps-actions,.savebar{flex-direction:column}.savebar .btn{width:100%}}
+</style>
+</head>
+<body>
+<div class="app">
+  <div class="hero">
+    <div>
+      <h1>📍 Add Customer</h1>
+      <p>Create a customer inside your assigned sales location and capture the customer's real device location for future delivery and customer visits.</p>
+    </div>
+    <div class="badge">Sales Support · Assigned Locations Only</div>
+  </div>
+
+  <div id="message" class="message" hidden></div>
+
+  <div class="grid">
+    <section class="card">
+      <div class="card-head"><strong>Customer Information</strong><span>Customer ID is generated automatically after save.</span></div>
+      <div class="card-body">
+        <div class="fields">
+          <div class="field">
+            <label>Customer Name <span class="required">*</span></label>
+            <input id="customerName" autocomplete="organization" placeholder="Customer / shop name">
+          </div>
+          <div class="field">
+            <label>Phone</label>
+            <input id="phone" autocomplete="tel" placeholder="Customer phone number">
+          </div>
+          <div class="field full">
+            <label>Assigned Location <span class="required">*</span></label>
+            <select id="locationCode"><option value="">Loading assigned locations…</option></select>
+            <div class="hint">Only locations assigned to your BIG BROTHER account are available.</div>
+          </div>
+          <div class="field full">
+            <label>Address</label>
+            <input id="address" autocomplete="street-address" placeholder="Street / village / commune / city">
+          </div>
+          <div class="field full">
+            <label>Delivery Location Note</label>
+            <textarea id="deliveryNote" placeholder="Example: blue shop beside the market, use back entrance for delivery"></textarea>
+          </div>
+        </div>
+
+        <div class="savebar">
+          <button id="clearBtn" class="btn secondary" type="button">Clear Form</button>
+          <button id="saveBtn" class="btn primary" type="button">✓ Save Customer</button>
+        </div>
+
+        <div id="result" class="result">
+          <h3>Customer created successfully ✓</h3>
+          <div class="result-row"><span>Customer ID</span><strong id="resultId">-</strong></div>
+          <div class="result-row"><span>Customer</span><strong id="resultName">-</strong></div>
+          <div class="result-row"><span>Location</span><strong id="resultLocation">-</strong></div>
+          <div class="result-row"><span>GPS</span><strong id="resultGps">-</strong></div>
+        </div>
+      </div>
+    </section>
+
+    <aside>
+      <section class="card">
+        <div class="card-head"><strong>📡 Customer Device Location</strong><span>Use the device GPS while you are physically at the customer's location.</span></div>
+        <div class="card-body">
+          <div class="profile" id="profile"><strong>Loading staff access…</strong></div>
+          <div class="gps-box" style="margin-top:13px">
+            <div class="gps-title">
+              <strong>Live GPS Sync</strong>
+              <span id="gpsStatus" class="gps-status">Not synced</span>
+            </div>
+            <div class="gps-actions">
+              <button id="syncBtn" class="btn location" type="button">◎ Sync Current Device Location</button>
+              <button id="resetGpsBtn" class="btn secondary" type="button">Reset</button>
+            </div>
+            <div class="coords">
+              <div class="coord"><small>Latitude</small><strong id="latText">—</strong></div>
+              <div class="coord"><small>Longitude</small><strong id="lngText">—</strong></div>
+            </div>
+            <div id="accuracy" class="accuracy">Accuracy: waiting for device GPS.</div>
+            <div class="map-row">
+              <div id="mapLinkText" class="map-link">Google Maps link will be generated automatically.</div>
+              <button id="openMapBtn" class="btn secondary" type="button" disabled>Open Map</button>
+            </div>
+            <div class="privacy">The browser will ask permission before sharing location. BIG BROTHER saves the latitude, longitude and Google Maps link only when you save the customer. GPS accuracy depends on the device, signal and browser.</div>
+          </div>
+        </div>
+      </section>
+    </aside>
+  </div>
+
+  <div class="footer">BIG BROTHER Accounting System · Sales Support · Add Customer</div>
+</div>
+
+<script src="add-customer-adapter.js?v=20260914-1"></script>
+<script>
+(function(){
+'use strict';
+const $=id=>document.getElementById(id);
+const clean=v=>String(v==null?'':v).trim();
+let bootstrap=null;
+let bestPosition=null;
+let watchId=null;
+let gpsStopTimer=null;
+let syncing=false;
+
+function showMessage(text,type='error'){
+  const el=$('message');
+  el.textContent=text||'';
+  el.className='message '+type;
+  el.hidden=!text;
+}
+function hideMessage(){showMessage('')}
+function mapUrl(lat,lng){return `https://www.google.com/maps?q=${Number(lat).toFixed(7)},${Number(lng).toFixed(7)}`}
+function renderGps(){
+  if(!bestPosition){
+    $('latText').textContent='—';$('lngText').textContent='—';$('accuracy').textContent='Accuracy: waiting for device GPS.';
+    $('mapLinkText').textContent='Google Maps link will be generated automatically.';$('openMapBtn').disabled=true;
+    if(!syncing){$('gpsStatus').textContent='Not synced';$('gpsStatus').className='gps-status'}
+    return;
+  }
+  const c=bestPosition.coords;
+  $('latText').textContent=Number(c.latitude).toFixed(7);
+  $('lngText').textContent=Number(c.longitude).toFixed(7);
+  $('accuracy').textContent='Best device accuracy: ±'+Math.round(Number(c.accuracy)||0)+' meters'+(c.accuracy<=10?' · Excellent GPS lock':c.accuracy<=30?' · Good GPS lock':' · Move outdoors for better accuracy');
+  const url=mapUrl(c.latitude,c.longitude);
+  $('mapLinkText').textContent=url;
+  $('openMapBtn').disabled=false;
+  if(!syncing){$('gpsStatus').textContent='Synced · ±'+Math.round(Number(c.accuracy)||0)+'m';$('gpsStatus').className='gps-status '+(c.accuracy<=30?'good':'warn')}
+}
+function stopGps(finalize=true){
+  if(watchId!==null&&navigator.geolocation){navigator.geolocation.clearWatch(watchId);watchId=null}
+  if(gpsStopTimer){clearTimeout(gpsStopTimer);gpsStopTimer=null}
+  syncing=false;$('syncBtn').disabled=false;$('syncBtn').textContent='◎ Sync Current Device Location';
+  if(finalize)renderGps();
+}
+function gpsErrorMessage(err){
+  if(err?.code===1)return 'Location permission was denied. Allow location for this site, then try again.';
+  if(err?.code===2)return 'Your device could not determine its location. Turn on Location/GPS and try again.';
+  if(err?.code===3)return 'Location request timed out. Move to an open area and try again.';
+  return 'Could not access device location.';
+}
+function syncGps(){
+  hideMessage();
+  if(!('geolocation' in navigator))return showMessage('This device/browser does not support location services.');
+  stopGps(false);bestPosition=null;syncing=true;renderGps();
+  $('syncBtn').disabled=true;$('syncBtn').textContent='Locating…';
+  $('gpsStatus').textContent='Searching GPS…';$('gpsStatus').className='gps-status warn';
+  $('accuracy').textContent='Searching for the most accurate device position for up to 12 seconds…';
+  const onPosition=pos=>{
+    if(!pos?.coords)return;
+    if(!bestPosition || Number(pos.coords.accuracy)<Number(bestPosition.coords.accuracy))bestPosition=pos;
+    const c=bestPosition.coords;
+    $('latText').textContent=Number(c.latitude).toFixed(7);$('lngText').textContent=Number(c.longitude).toFixed(7);
+    $('accuracy').textContent='Improving GPS accuracy… best so far ±'+Math.round(Number(c.accuracy)||0)+' meters';
+    $('gpsStatus').textContent='GPS ±'+Math.round(Number(c.accuracy)||0)+'m';
+    if(Number(c.accuracy)<=10)stopGps(true);
+  };
+  const onError=err=>{
+    stopGps(false);bestPosition=null;renderGps();
+    $('gpsStatus').textContent='GPS unavailable';$('gpsStatus').className='gps-status bad';
+    showMessage(gpsErrorMessage(err));
+  };
+  watchId=navigator.geolocation.watchPosition(onPosition,onError,{enableHighAccuracy:true,maximumAge:0,timeout:15000});
+  gpsStopTimer=setTimeout(()=>{
+    if(bestPosition)stopGps(true);
+    else onError({code:3});
+  },12000);
+}
+function resetGps(){stopGps(false);bestPosition=null;syncing=false;renderGps()}
+function renderBootstrap(){
+  const st=bootstrap?.staff||{};
+  $('profile').innerHTML='<strong>👤 '+(clean(st.staffName)||'Staff')+'</strong><br>'+(clean(st.staffId)||'No Staff ID')+' · New customer will be limited to your assigned sales locations.';
+  const rows=Array.isArray(bootstrap?.locations)?bootstrap.locations:[];
+  const sel=$('locationCode');
+  sel.innerHTML='<option value="">Select assigned location</option>'+rows.map(x=>`<option value="${clean(x.locationCode).replace(/"/g,'&quot;')}">${clean(x.locationName)||clean(x.locationCode)} (${clean(x.locationCode)})</option>`).join('');
+  if(rows.length===1)sel.value=clean(rows[0].locationCode);
+  if(!rows.length){sel.innerHTML='<option value="">No assigned location</option>';$('saveBtn').disabled=true;showMessage('No active sales location is assigned to this account.');}
+}
+function clearForm(keepLocation=true){
+  $('customerName').value='';$('phone').value='';$('address').value='';$('deliveryNote').value='';
+  if(!keepLocation)$('locationCode').value='';
+  resetGps();$('result').classList.remove('show');hideMessage();$('customerName').focus();
+}
+async function saveCustomer(){
+  hideMessage();$('result').classList.remove('show');
+  const name=clean($('customerName').value);const locationCode=clean($('locationCode').value);
+  if(!name)return showMessage('Customer Name is required.');
+  if(!locationCode)return showMessage('Please select one of your assigned locations.');
+  const btn=$('saveBtn');btn.disabled=true;btn.textContent='Saving…';
+  try{
+    const c=bestPosition?.coords||null;
+    const payload={
+      name,
+      phone:clean($('phone').value),
+      address:clean($('address').value),
+      locationCode,
+      deliveryLocationNote:clean($('deliveryNote').value),
+      latitude:c?Number(c.latitude).toFixed(7):'',
+      longitude:c?Number(c.longitude).toFixed(7):'',
+      googleMapsLink:c?mapUrl(c.latitude,c.longitude):''
+    };
+    const d=await window.BBAddCustomerAdapter.save(payload);
+    if(!d?.success||!d?.customer)throw new Error('Could not create customer.');
+    const created=d.customer;
+    $('resultId').textContent=created.customerId||'-';
+    $('resultName').textContent=created.name||name;
+    $('resultLocation').textContent=created.locationCode||locationCode;
+    $('resultGps').textContent=created.latitude&&created.longitude?created.latitude+', '+created.longitude:'Not captured';
+    $('result').classList.add('show');
+    showMessage('Customer '+(created.customerId||'')+' created successfully. Default product prices were initialized automatically.','success');
+    $('customerName').value='';$('phone').value='';$('address').value='';$('deliveryNote').value='';resetGps();
+  }catch(e){showMessage(e?.message||String(e));}
+  finally{btn.disabled=false;btn.textContent='✓ Save Customer'}
+}
+async function init(){
+  try{
+    await window.BBAddCustomerAdapter.ensureSession();
+    bootstrap=await window.BBAddCustomerAdapter.bootstrap();
+    renderBootstrap();
+  }catch(e){showMessage(e?.message||String(e));$('saveBtn').disabled=true;$('syncBtn').disabled=true;}
+}
+$('syncBtn').addEventListener('click',syncGps);$('resetGpsBtn').addEventListener('click',resetGps);$('openMapBtn').addEventListener('click',()=>{if(bestPosition){const c=bestPosition.coords;window.open(mapUrl(c.latitude,c.longitude),'_blank','noopener')}});$('saveBtn').addEventListener('click',saveCustomer);$('clearBtn').addEventListener('click',()=>clearForm(false));window.addEventListener('beforeunload',()=>stopGps(false));init();
+})();
+</script>
+</body>
+</html>
