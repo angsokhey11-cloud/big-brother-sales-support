@@ -1,0 +1,120 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>BIG BROTHER — Add Customer Mobile</title>
+<style>
+html,body{margin:0;width:100%;height:100%;overflow:hidden;background:#f4f7fb;font-family:Arial,Helvetica,sans-serif}
+#customerFrame{display:block;width:100%;height:100%;border:0;background:#f4f7fb}
+#boot{position:fixed;inset:0;display:flex;align-items:center;justify-content:center;background:#f4f7fb;color:#17457a;font-size:13px;font-weight:800;z-index:5}
+#boot.hide{display:none}
+</style>
+</head>
+<body>
+<div id="boot">Loading Add Customer…</div>
+<iframe id="customerFrame" src="add-customer.html?embed=1&mobileSkin=1&v=20260914-2" title="Add Customer" allow="geolocation"></iframe>
+<script>
+(function(){
+'use strict';
+const frame=document.getElementById('customerFrame');
+const boot=document.getElementById('boot');
+
+const MOBILE_CSS=String.raw`
+:root{--bb-blue:#1768d5;--bb-navy:#123f78;--bb-bg:#f4f7fb;--bb-line:#dce5ef;--bb-text:#18324e;--bb-muted:#6d7e92;--bb-green:#168c52;--bb-red:#c62828}
+html,body{background:var(--bb-bg)!important;overflow-x:hidden!important}
+body{min-width:0!important}
+.app{width:100%!important;max-width:none!important;margin:0!important;padding:7px 7px 14px!important}
+.hero,.footer{display:none!important}
+.grid{display:grid!important;grid-template-columns:1fr!important;gap:8px!important}
+.card{border:1px solid var(--bb-line)!important;border-radius:12px!important;box-shadow:0 2px 9px rgba(23,63,119,.045)!important;background:#fff!important;overflow:hidden!important}
+.card-head{padding:9px 10px!important;border-bottom:1px solid #e8edf4!important}
+.card-head strong{display:flex!important;align-items:center!important;gap:6px!important;color:var(--bb-navy)!important;font-size:12px!important;line-height:1.2!important}
+.grid>section.card .card-head strong::before{content:'👤';font-size:13px}
+.grid>aside .card-head strong::before{content:'📍';font-size:13px}
+.card-head span{display:none!important}
+.card-body{padding:9px 10px!important}
+.fields{display:grid!important;grid-template-columns:minmax(0,1fr) minmax(0,1fr)!important;gap:8px!important}
+.field{min-width:0!important}
+.field.full{grid-column:1/-1!important}
+.field label{display:block!important;margin:0 0 4px!important;color:#536b84!important;font-size:8.5px!important;line-height:1.1!important;font-weight:900!important;letter-spacing:.2px!important;text-transform:uppercase!important}
+.field input,.field select,.field textarea{width:100%!important;min-width:0!important;border:1px solid #ced9e7!important;border-radius:8px!important;padding:0 9px!important;background:#fff!important;color:var(--bb-text)!important;font-size:11px!important;line-height:1.2!important;outline:none!important;box-shadow:none!important}
+.field input,.field select{height:36px!important}
+.field textarea{min-height:54px!important;height:54px!important;padding:8px 9px!important;resize:vertical!important}
+.field input:focus,.field select:focus,.field textarea:focus{border-color:var(--bb-blue)!important;box-shadow:0 0 0 2px rgba(23,104,213,.09)!important}
+.hint{margin-top:3px!important;color:#7c8b9c!important;font-size:7.5px!important;line-height:1.3!important}
+.required{color:var(--bb-red)!important}
+.message{margin:0 0 7px!important;padding:8px 9px!important;border-radius:9px!important;font-size:9.5px!important;line-height:1.35!important}
+.profile{padding:7px 8px!important;border-radius:8px!important;font-size:8.5px!important;line-height:1.35!important;background:#f7faff!important}
+.gps-box{margin-top:7px!important;padding:8px!important;border:1px solid #d4e2f3!important;border-radius:10px!important;background:#f8fbff!important}
+.gps-title{gap:8px!important}
+.gps-title strong{font-size:10.5px!important;color:var(--bb-navy)!important}
+.gps-status{font-size:8px!important;white-space:nowrap!important}
+.gps-actions{display:grid!important;grid-template-columns:minmax(0,1fr) auto!important;gap:6px!important;margin-top:7px!important}
+.btn{min-height:36px!important;border-radius:8px!important;padding:7px 10px!important;font-size:9px!important;line-height:1.15!important;font-weight:900!important}
+.btn.location{min-width:0!important;width:100%!important}
+.coords{display:grid!important;grid-template-columns:minmax(0,1fr) minmax(0,1fr)!important;gap:6px!important;margin-top:7px!important}
+.coord{min-width:0!important;padding:6px 7px!important;border-radius:8px!important}
+.coord small{font-size:7px!important}
+.coord strong{margin-top:2px!important;font-size:9.5px!important;white-space:nowrap!important;overflow:hidden!important;text-overflow:ellipsis!important}
+.accuracy{margin-top:6px!important;padding:6px 7px!important;border-radius:8px!important;font-size:8px!important;line-height:1.3!important}
+.map-row{display:grid!important;grid-template-columns:minmax(0,1fr) auto!important;gap:6px!important;margin-top:6px!important}
+.map-link{min-width:0!important;padding:7px 8px!important;border-radius:8px!important;font-size:8px!important}
+.map-row .btn{min-height:34px!important;padding:6px 9px!important}
+.privacy{margin-top:7px!important;color:#7d8997!important;font-size:7.5px!important;line-height:1.35!important}
+.savebar{display:grid!important;grid-template-columns:minmax(0,.75fr) minmax(0,1.25fr)!important;gap:7px!important;margin-top:9px!important;padding-top:8px!important;border-top:1px solid #edf1f6!important}
+.savebar .btn{width:100%!important;min-width:0!important;height:39px!important;font-size:10px!important}
+.result{margin-top:9px!important;padding:9px!important;border-radius:9px!important}
+.result h3{margin:0 0 6px!important;font-size:11px!important}
+.result-row{padding:4px 0!important;font-size:8.5px!important}
+aside{min-width:0!important}
+@media(max-width:350px){
+ .app{padding:6px!important}.fields{grid-template-columns:1fr!important}.field.full{grid-column:auto!important}.gps-actions{grid-template-columns:1fr!important}.map-row{grid-template-columns:1fr!important}.savebar{grid-template-columns:1fr 1.35fr!important}.field input,.field select{height:35px!important}
+}
+`;
+
+function addStyle(doc){
+  let style=doc.getElementById('bb-add-customer-mobile-skin');
+  if(!style){style=doc.createElement('style');style.id='bb-add-customer-mobile-skin';doc.head.appendChild(style)}
+  style.textContent=MOBILE_CSS;
+}
+
+function tuneInputs(doc){
+  const phone=doc.getElementById('phone');
+  if(phone){phone.setAttribute('inputmode','tel');phone.setAttribute('type','tel')}
+  const note=doc.getElementById('deliveryNote');
+  if(note){note.setAttribute('rows','2')}
+}
+
+function compactCopy(doc){
+  const sync=doc.getElementById('syncBtn');
+  if(sync && !sync.dataset.bbMobileText){sync.dataset.bbMobileText='1';
+    const obs=new frame.contentWindow.MutationObserver(()=>{
+      const t=String(sync.textContent||'').trim();
+      if(t==='◎ Sync Current Device Location')sync.textContent='◎ Sync Device GPS';
+    });
+    obs.observe(sync,{childList:true,subtree:true,characterData:true});
+    if(String(sync.textContent||'').trim()==='◎ Sync Current Device Location')sync.textContent='◎ Sync Device GPS';
+  }
+  const clear=doc.getElementById('clearBtn');if(clear)clear.textContent='Clear';
+}
+
+function inject(){
+  let doc;
+  try{doc=frame.contentDocument||frame.contentWindow.document}catch(_){return}
+  if(!doc||!doc.head||!doc.body)return;
+  addStyle(doc);
+  tuneInputs(doc);
+  compactCopy(doc);
+  boot.classList.add('hide');
+}
+
+frame.addEventListener('load',()=>{
+  setTimeout(inject,50);
+  setTimeout(inject,300);
+  setTimeout(inject,900);
+});
+})();
+</script>
+</body>
+</html>
