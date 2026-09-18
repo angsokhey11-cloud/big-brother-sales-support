@@ -1967,16 +1967,31 @@
     }catch(_){}
   }
 
-  function cacheGet(key, maxAge){
+  function cacheEntry(key){
     try{
       const raw = localStorage.getItem(key);
       if(!raw) return null;
       const parsed = JSON.parse(raw);
-      if(!parsed || Date.now() - num(parsed.time) > maxAge) return null;
-      return parsed.value;
+      if(!parsed || !Object.prototype.hasOwnProperty.call(parsed, "value")) return null;
+      return {
+        time:num(parsed.time),
+        age:Math.max(0, Date.now() - num(parsed.time)),
+        value:parsed.value
+      };
     }catch(_){
       return null;
     }
+  }
+
+  function cacheGet(key, maxAge){
+    const entry = cacheEntry(key);
+    if(!entry || entry.age > maxAge) return null;
+    return entry.value;
+  }
+
+  function cachePeek(key){
+    const entry = cacheEntry(key);
+    return entry ? entry.value : null;
   }
 
   function jsonp(url, query = {}, timeout = 18000){
@@ -2070,14 +2085,24 @@
       ? cacheGet(PRODUCTS_CACHE_KEY, CACHE_AGE_PRODUCTS)
       : null;
 
+    const localLocations = !force
+      ? (cachedLocations || cachePeek(PUBLIC_LOCATIONS_CACHE_KEY))
+      : null;
+    const localCustomers = !force
+      ? (cachedCustomers || cachePeek(CUSTOMERS_CACHE_PREFIX + "PUBLIC"))
+      : null;
+    const localProducts = !force
+      ? (cachedProducts || cachePeek(PRODUCTS_CACHE_KEY))
+      : null;
+
     profile = {
       salesmanId:"PUBLIC",
       salesmanName:"Sales Support",
       publicMode:true,
-      locations:Array.isArray(cachedLocations) ? cachedLocations : []
+      locations:Array.isArray(localLocations) ? localLocations : []
     };
-    if(Array.isArray(cachedCustomers)) customers = cachedCustomers;
-    if(Array.isArray(cachedProducts)) products = cachedProducts;
+    if(Array.isArray(localCustomers)) customers = localCustomers;
+    if(Array.isArray(localProducts)) products = localProducts;
 
     updateSessionUI();
     renderAll();
@@ -2085,12 +2110,26 @@
     loadCalcHistoryMemory();
     renderCalcHistory();
 
-    // Restore immediately when cached Master data is available.
+    // Restore immediately from device storage, including stale cache when offline.
     if(
       (customers.length || products.length) &&
       !calcMemoryReady
     ){
       restoreCalcCurrentMemory();
+    }
+
+    // Fresh local Master data means Calculator opens with zero network sync.
+    if(
+      !force &&
+      Array.isArray(cachedLocations) &&
+      Array.isArray(cachedCustomers) &&
+      Array.isArray(cachedProducts)
+    ){
+      if(!localStorage.getItem(CALC_CURRENT_MEMORY_KEY)){
+        showStatus("calcStatus", "Local data ready. Calculator can work offline.", false);
+      }
+      setView(currentView, false);
+      return;
     }
 
     try{
@@ -2174,15 +2213,22 @@
     const customerCacheKey = CUSTOMERS_CACHE_PREFIX + profile.salesmanId;
     const cachedCustomers = !force ? cacheGet(customerCacheKey, CACHE_AGE_CUSTOMERS) : null;
     const cachedProducts = !force ? cacheGet(PRODUCTS_CACHE_KEY, CACHE_AGE_PRODUCTS) : null;
+    const localCustomers = !force ? (cachedCustomers || cachePeek(customerCacheKey)) : null;
+    const localProducts = !force ? (cachedProducts || cachePeek(PRODUCTS_CACHE_KEY)) : null;
 
-    if(Array.isArray(cachedCustomers)){
-      customers = cachedCustomers;
+    if(Array.isArray(localCustomers)){
+      customers = localCustomers;
       renderAll();
     }
 
-    if(Array.isArray(cachedProducts)){
-      products = cachedProducts;
+    if(Array.isArray(localProducts)){
+      products = localProducts;
       renderAll();
+    }
+
+    // Fresh local customer/product data: do not hit Supabase just because Sales Support opened.
+    if(!force && Array.isArray(cachedCustomers) && Array.isArray(cachedProducts)){
+      return;
     }
 
     const productPromise = jsonp(MASTER_API, {action:"getProducts"})
@@ -2334,20 +2380,12 @@
     `;
   }
 
-  async function getCustomerPrices(customer){
-    if(!customer) return null;
+  const customerPriceRefreshPromises = {};
 
-    const key = customer.customerId || (customer.locationCode + "|" + customer.name);
-    if(customerPriceCache[key]) return customerPriceCache[key];
-
-    const cached = cacheGet(PRICE_CACHE_PREFIX + encodeURIComponent(key), CACHE_AGE_PRICES);
-    if(cached){
-      customerPriceCache[key] = cached;
-      return cached;
-    }
-
+  async function fetchCustomerPrices(customer, key, cacheKey){
     const data = await jsonp(MASTER_API, {
       action:"getCustomerProductPrices",
+      customerId:customer.customerId,
       customer:customer.name
     });
 
@@ -2368,8 +2406,51 @@
     };
 
     customerPriceCache[key] = result;
-    cacheSet(PRICE_CACHE_PREFIX + encodeURIComponent(key), result);
+    cacheSet(cacheKey, result);
     return result;
+  }
+
+  function refreshCustomerPricesInBackground(customer, key, cacheKey){
+    if(customerPriceRefreshPromises[key]) return customerPriceRefreshPromises[key];
+    if(typeof navigator !== "undefined" && navigator.onLine === false) return null;
+
+    customerPriceRefreshPromises[key] = fetchCustomerPrices(customer, key, cacheKey)
+      .catch(error => {
+        console.warn("Customer price background refresh:", error);
+        return null;
+      })
+      .finally(() => {
+        delete customerPriceRefreshPromises[key];
+      });
+
+    return customerPriceRefreshPromises[key];
+  }
+
+  async function getCustomerPrices(customer){
+    if(!customer) return null;
+
+    const key = customer.customerId || (customer.locationCode + "|" + customer.name);
+    const cacheKey = PRICE_CACHE_PREFIX + encodeURIComponent(key);
+
+    if(customerPriceCache[key]) return customerPriceCache[key];
+
+    const cached = cacheGet(cacheKey, CACHE_AGE_PRICES);
+    if(cached){
+      customerPriceCache[key] = cached;
+      return cached;
+    }
+
+    // Never block the salesman when older local prices already exist.
+    // Use them immediately and refresh silently when internet is available.
+    const staleCached = cachePeek(cacheKey);
+    if(staleCached){
+      customerPriceCache[key] = staleCached;
+      refreshCustomerPricesInBackground(customer, key, cacheKey);
+      return staleCached;
+    }
+
+    // First use on this device/customer needs one successful online fetch.
+    return fetchCustomerPrices(customer, key, cacheKey);
   }
 
   function productByCode(code){
