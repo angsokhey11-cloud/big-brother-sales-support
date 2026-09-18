@@ -328,126 +328,14 @@ html,body{margin:0;min-height:100%;background:#eef3f8;font-family:Arial,sans-ser
         if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',boot,{once:true});else boot();
       })();</scr`+`ipt>`;
 
-      const hc=html.toLowerCase().indexOf('</head>');
-      html=html.slice(0,hc)+mobileStyle+'\n'+html.slice(hc);
-      const bc=html.toLowerCase().lastIndexOf('</body>');
-      html=html.slice(0,bc)+mobileScript+'\n'+html.slice(bc);
-    }
+      const mobileReportStyle='<style id="bb-mobile-calculator-report-style">'+"\n#view-calculator .calc-history-head,\n#view-calculator #calcHistoryPanel{display:none!important}\n#bbCalcReport{display:grid;gap:9px}\n.bb-report-title{display:flex;align-items:flex-start;justify-content:space-between;gap:10px}\n.bb-report-title h2{margin:0;color:#173f77;font-size:15px}\n.bb-report-title small{display:block;margin-top:3px;color:#71869c;font-size:8.5px;line-height:1.35}\n.bb-report-filter{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:7px}\n.bb-report-filter select,.bb-report-filter input{width:100%;min-height:38px;border:1px solid #cbd9e8;border-radius:9px;background:#fff;color:#243b58;padding:6px 8px;font-size:11px;font-weight:800}\n#bbCalcReportDate[hidden]{display:none!important}\n.bb-report-kpis{display:grid;grid-template-columns:1fr 1fr;gap:7px}\n.bb-report-kpi{border:1px solid #dce6f0;border-radius:10px;background:#f8fbfe;padding:9px}\n.bb-report-kpi small{display:block;color:#71869c;font-size:8px;font-weight:900;text-transform:uppercase}\n.bb-report-kpi strong{display:block;margin-top:4px;color:#173f77;font-size:17px;line-height:1}\n.bb-report-section{border:1px solid #dfe8f1;border-radius:11px;background:#fff;overflow:hidden}\n.bb-report-section-head{display:flex;align-items:center;justify-content:space-between;gap:8px;padding:9px 10px;background:#f7fafd;border-bottom:1px solid #e5ecf3}\n.bb-report-section-head strong{color:#173f77;font-size:11px}\n.bb-report-section-head small{color:#71869c;font-size:8px;font-weight:800}\n.bb-report-product-list{display:grid}\n.bb-report-product{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:8px;padding:8px 10px;border-bottom:1px solid #eef2f6;align-items:center}\n.bb-report-product:last-child{border-bottom:0}\n.bb-report-product span{color:#334d69;font-size:10px;font-weight:800}\n.bb-report-product strong{color:#173f77;font-size:12px}\n.bb-report-empty{padding:18px 10px;text-align:center;color:#71869c;font-size:10px;font-weight:800}\n.bb-report-actions{display:flex;align-items:center;justify-content:space-between;gap:8px;padding:8px 9px;background:#f7fafd;border-bottom:1px solid #e5ecf3}\n.bb-report-select-all{display:flex;align-items:center;gap:6px;color:#526a82;font-size:9px;font-weight:900}\n.bb-report-select-all input{width:16px;height:16px}\n#bbCalcDeleteSelected{min-height:34px;border:0;border-radius:8px;padding:6px 10px;background:#ffe8e6;color:#c43a32;font-size:9px;font-weight:900}\n#bbCalcDeleteSelected:disabled{opacity:.45}\n.bb-report-transactions{display:grid;gap:7px;padding:8px}\n.bb-report-tx{border:1px solid #dfe7f0;border-radius:10px;padding:8px;background:#fff}\n.bb-report-tx-top{display:grid;grid-template-columns:auto minmax(0,1fr) auto;gap:8px;align-items:start}\n.bb-report-tx-check{width:17px;height:17px;margin-top:1px}\n.bb-report-tx-main strong{display:block;color:#173f77;font-size:11px}\n.bb-report-tx-main small{display:block;margin-top:2px;color:#71869c;font-size:8px;line-height:1.35}\n.bb-report-tx-total{color:#173f77;font-size:11px;font-weight:900;text-align:right;white-space:nowrap}\n.bb-report-tx-lines{display:grid;gap:3px;margin-top:7px;padding-top:7px;border-top:1px dashed #e3eaf1}\n.bb-report-tx-line{display:flex;justify-content:space-between;gap:8px;color:#526a82;font-size:9px}\n.bb-report-tx-line strong{color:#334d69;font-size:9px;white-space:nowrap}\n@media(max-width:380px){\n  .bb-report-filter{grid-template-columns:1fr}\n}\n"+'</style>';
 
-    document.open();
-    document.write(html);
-    document.close();
-  }catch(error){
-    console.error(error);
-    document.body.innerHTML='<div class="bb-loader"><div class="bb-card">Could not open Sales Support<div class="bb-sub">'+String(error?.message||error)+'</div></div></div>';
-  }
-})();
-</script>
-</body>
-</html>+num(value).toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2});}
-        function transactionTotals(entry){
-          const subtotal=(Array.isArray(entry?.lines)?entry.lines:[]).reduce((sum,line)=>sum+Math.max(0,num(line.qty))*Math.max(0,num(line.usdPrice)),0);
-          return {subtotal,grand:Math.max(0,subtotal-Math.max(0,num(entry?.discountUSD)))};
-        }
-        function syncPreviewButton(){const b=q('#bbCalcPreviewLast');if(!b)return;b.hidden=!clean(q('#calcCustomerSearch')?.value);}
-        function closeLastTransaction(){const modal=q('#bbCalcLastTxnModal');if(modal)modal.hidden=true;}
-        function showLastTransaction(){
-          const modal=q('#bbCalcLastTxnModal'),body=q('#bbCalcLastTxnBody'),title=q('#bbCalcLastTxnCustomer');
-          if(!modal||!body||!title)return;
-          const customer=clean(q('#calcCustomerSearch')?.value)||'Customer';
-          title.textContent=customer;
-          const entry=lastTransaction();
-          body.textContent='';
-          if(!entry){
-            const empty=document.createElement('div');empty.className='bb-lasttxn-empty';empty.textContent='No previous transaction found for this customer on this device.';body.appendChild(empty);modal.hidden=false;return;
-          }
-          const curr=entry.currency==='KHR'?'KHR':'USD';
-          const rate=Math.max(1,num(entry.rate)||4060);
-          const totals=transactionTotals(entry);
-          const meta=document.createElement('div');meta.className='bb-lasttxn-meta';
-          const date=new Date(num(entry.createdAt));
-          meta.textContent='Last calculation: '+(Number.isNaN(date.getTime())?'-':date.toLocaleString())+' · '+clean(entry.locationCode||'');
-          body.appendChild(meta);
-          const products=document.createElement('div');products.className='bb-lasttxn-products';
-          (Array.isArray(entry.lines)?entry.lines:[]).forEach(line=>{
-            const row=document.createElement('div');row.className='bb-lasttxn-row';
-            const info=document.createElement('div');
-            const name=document.createElement('strong');name.textContent=clean(line.productName)||'Product';
-            const detail=document.createElement('small');
-            const unitPrice=curr==='KHR'?num(line.usdPrice)*rate:num(line.usdPrice);
-            detail.textContent='QTY '+num(line.qty).toLocaleString('en-US')+' · '+money(unitPrice,curr)+' each';
-            info.append(name,detail);
-            const amount=document.createElement('div');amount.className='bb-lasttxn-amount';
-            const lineTotal=num(line.qty)*unitPrice;amount.textContent=money(lineTotal,curr);
-            row.append(info,amount);products.appendChild(row);
-          });
-          body.appendChild(products);
-          const total=document.createElement('div');total.className='bb-lasttxn-total';
-          const label=document.createElement('small');label.textContent=num(entry.discountUSD)>0?'TOTAL AFTER DISCOUNT':'TOTAL';
-          const strong=document.createElement('strong');strong.textContent=money(curr==='KHR'?totals.grand*rate:totals.grand,curr);
-          total.append(label,strong);body.appendChild(total);
-          modal.hidden=false;
-        }
-        function ensureUi(){
-          const shell=q('#view-calculator .calc-shell'),card=q('#view-calculator .calc-control-card');if(!shell||!card)return false;
-          let bar=q('#bbCalcCompactBar');
-          if(!bar){bar=document.createElement('div');bar.id='bbCalcCompactBar';bar.innerHTML='<div class="bb-calc-summary-main"><strong class="bb-calc-summary-customer">Customer</strong><span class="bb-calc-summary-meta">—</span></div><button type="button" class="bb-calc-edit">✎ Edit</button>';shell.insertBefore(bar,card);bar.querySelector('.bb-calc-edit').addEventListener('click',()=>{manualExpanded=true;sync();});}
-          let done=q('#bbCalcDone');
-          if(!done){done=document.createElement('button');done.type='button';done.id='bbCalcDone';done.textContent='Done · Back to Products';card.appendChild(done);done.addEventListener('click',()=>{manualExpanded=false;sync();q('#calcProductSearch')?.focus();});}
-          return true;
-        }
-        function updateBar(){
-          const bar=q('#bbCalcCompactBar');if(!bar)return;
-          const customer=clean(q('#calcCustomerSearch')?.value)||'Customer';
-          const location=selectedText(q('#calcLocation'))||'Location';
-          const rate=clean(q('#calcRate')?.value)||'—';
-          bar.querySelector('.bb-calc-summary-customer').textContent=customer;
-          bar.querySelector('.bb-calc-summary-meta').textContent=location+'  ·  '+currency()+'  ·  '+rate;
-        }
-        function sync(){
-          if(!ensureUi())return;
-          const card=q('#view-calculator .calc-control-card'),bar=q('#bbCalcCompactBar'),lines=q('#calcLines');
-          const count=lines?lines.querySelectorAll('.calc-product-row').length:0;
-          if(count>0&&lastCount===0&&!manualExpanded)manualExpanded=false;
-          if(count===0)manualExpanded=false;
-          const collapsed=count>0&&!manualExpanded;
-          card.style.display=collapsed?'none':'';
-          card.classList.toggle('bb-mobile-editing',count>0&&manualExpanded);
-          bar.classList.toggle('show',collapsed);
-          updateBar();lastCount=count;
-        }
-        function observe(){
-          const lines=q('#calcLines');if(lines&&!lines.__bbMobileCalcObserved){lines.__bbMobileCalcObserved=true;new MutationObserver(()=>requestAnimationFrame(sync)).observe(lines,{childList:true,subtree:true});}
-          ['calcCustomerSearch','calcLocation','calcCurrency','calcRate'].forEach(id=>{const el=document.getElementById(id);if(el&&!el.__bbMobileCalcBound){el.__bbMobileCalcBound=true;el.addEventListener('input',updateBar);el.addEventListener('change',updateBar);}});
-          ['calcCurrencyUSD','calcCurrencyKHR'].forEach(id=>{const el=document.getElementById(id);if(el&&!el.__bbMobileCalcBound){el.__bbMobileCalcBound=true;el.addEventListener('click',()=>setTimeout(updateBar,0));}});
-          const newBtn=q('#calcNewBtn');
-          if(newBtn&&!newBtn.__bbMobileNewBound){
-            newBtn.__bbMobileNewBound=true;
-            newBtn.addEventListener('click',()=>{
-              setTimeout(()=>{
-                const customer=q('#calcCustomerSearch');
-                if(customer){
-                  customer.value='';
-                  customer.dispatchEvent(new Event('input',{bubbles:true}));
-                }
-                const summary=q('#calcCustomerSummary');
-                if(summary)summary.innerHTML='';
-                const rate=q('#calcRate');
-                if(rate)rate.dispatchEvent(new Event('input',{bubbles:true}));
-                updateBar();
-                customer?.focus();
-              },0);
-            });
-          }
-        }
-        function boot(){if(!ensureUi()){setTimeout(boot,80);return;}observe();sync();setTimeout(sync,250);setTimeout(sync,800);}
-        if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',boot,{once:true});else boot();
-      })();</scr`+`ipt>`;
+      const mobileReportScript='<scr'+'ipt id="bb-mobile-calculator-report-script">'+"\n(function(){\n  'use strict';\n  const HISTORY_KEY='bb_sales_support_calc_history_v1';\n  const selected=new Set();\n  let mode='today';\n  let specificDate='';\n\n  const q=s=>document.querySelector(s);\n  const clean=v=>String(v==null?'':v).trim();\n  const num=v=>{const n=Number(v);return Number.isFinite(n)?n:0;};\n  const esc=v=>clean(v).replace(/[&<>\"']/g,ch=>({'&':'&amp;','<':'&lt;','>':'&gt;','\"':'&quot;',\"'\":'&#039;'}[ch]));\n\n  function historyEntries(){\n    try{\n      const parsed=JSON.parse(localStorage.getItem(HISTORY_KEY)||'[]');\n      return Array.isArray(parsed)?parsed:[];\n    }catch(_){\n      return [];\n    }\n  }\n\n  function dateKey(value){\n    const d=new Date(num(value));\n    if(Number.isNaN(d.getTime()))return'';\n    const y=d.getFullYear();\n    const m=String(d.getMonth()+1).padStart(2,'0');\n    const day=String(d.getDate()).padStart(2,'0');\n    return y+'-'+m+'-'+day;\n  }\n\n  function todayKey(){return dateKey(Date.now());}\n\n  function filteredEntries(){\n    const all=historyEntries();\n    if(mode==='all')return all;\n    const target=mode==='date'?specificDate:todayKey();\n    return all.filter(entry=>dateKey(entry?.createdAt)===target);\n  }\n\n  function entryGrandUSD(entry){\n    const subtotal=(Array.isArray(entry?.lines)?entry.lines:[]).reduce(\n      (sum,line)=>sum+Math.max(0,num(line.qty))*Math.max(0,num(line.usdPrice)),0\n    );\n    return Math.max(0,subtotal-Math.max(0,num(entry?.discountUSD)));\n  }\n\n  function entryQty(entry){\n    return (Array.isArray(entry?.lines)?entry.lines:[]).reduce(\n      (sum,line)=>sum+Math.max(0,num(line.qty)),0\n    );\n  }\n\n  function moneyUSD(value){\n    return String.fromCharCode(36)+num(value).toLocaleString('en-US',{\n      minimumFractionDigits:2,\n      maximumFractionDigits:2\n    });\n  }\n\n  function entryMoney(entry,valueUSD){\n    const curr=entry?.currency==='KHR'?'KHR':'USD';\n    const rate=Math.max(1,num(entry?.rate)||4060);\n    if(curr==='KHR'){\n      return Math.round(num(valueUSD)*rate).toLocaleString('en-US')+' ៛';\n    }\n    return moneyUSD(valueUSD);\n  }\n\n  function entryCustomerKey(entry){\n    return clean(entry?.customerKey) ||\n      (clean(entry?.locationCode).toLowerCase()+'|'+clean(entry?.customerName).toLowerCase());\n  }\n\n  function formatDateTime(value){\n    const d=new Date(num(value));\n    if(Number.isNaN(d.getTime()))return'-';\n    return d.toLocaleString(undefined,{\n      month:'short',day:'2-digit',hour:'2-digit',minute:'2-digit'\n    });\n  }\n\n  function productSummary(entries){\n    const map=new Map();\n    entries.forEach(entry=>{\n      (Array.isArray(entry?.lines)?entry.lines:[]).forEach(line=>{\n        const key=clean(line.productCode).toLowerCase()||clean(line.productName).toLowerCase();\n        if(!key)return;\n        const current=map.get(key)||{\n          name:clean(line.productName)||clean(line.productCode)||'Product',\n          qty:0\n        };\n        current.qty+=Math.max(0,num(line.qty));\n        map.set(key,current);\n      });\n    });\n    return Array.from(map.values()).sort((a,b)=>b.qty-a.qty||a.name.localeCompare(b.name));\n  }\n\n  function ensureUi(){\n    const card=q('#view-calculator .calc-history-card');\n    if(!card)return false;\n\n    let root=q('#bbCalcReport');\n    if(!root){\n      root=document.createElement('div');\n      root.id='bbCalcReport';\n      root.innerHTML=\n        '<div class=\"bb-report-title\">'+\n          '<div><h2>📊 Calculator Report</h2>'+\n          '<small>Saved on this device. Filters only change the view — they do not delete history.</small></div>'+\n        '</div>'+\n        '<div class=\"bb-report-filter\">'+\n          '<select id=\"bbCalcReportFilter\" aria-label=\"Calculator report filter\">'+\n            '<option value=\"today\">Today Calculations</option>'+\n            '<option value=\"date\">Specific Date</option>'+\n            '<option value=\"all\">All History</option>'+\n          '</select>'+\n          '<input id=\"bbCalcReportDate\" type=\"date\" aria-label=\"Specific report date\" hidden>'+\n        '</div>'+\n        '<div class=\"bb-report-kpis\">'+\n          '<div class=\"bb-report-kpi\"><small>Transactions</small><strong id=\"bbReportTransactions\">0</strong></div>'+\n          '<div class=\"bb-report-kpi\"><small>Customers</small><strong id=\"bbReportCustomers\">0</strong></div>'+\n          '<div class=\"bb-report-kpi\"><small>Total QTY</small><strong id=\"bbReportQty\">0</strong></div>'+\n          '<div class=\"bb-report-kpi\"><small>Calculated Sales USD</small><strong id=\"bbReportSales\">$0.00</strong></div>'+\n        '</div>'+\n        '<div class=\"bb-report-section\">'+\n          '<div class=\"bb-report-section-head\"><strong>Product QTY Summary</strong><small id=\"bbReportProductCount\">0 products</small></div>'+\n          '<div id=\"bbReportProducts\" class=\"bb-report-product-list\"></div>'+\n        '</div>'+\n        '<div class=\"bb-report-section\">'+\n          '<div class=\"bb-report-section-head\"><strong>Transactions</strong><small id=\"bbReportRangeLabel\">Today</small></div>'+\n          '<div class=\"bb-report-actions\">'+\n            '<label class=\"bb-report-select-all\"><input type=\"checkbox\" id=\"bbReportSelectAll\"> Select all shown</label>'+\n            '<button type=\"button\" id=\"bbCalcDeleteSelected\" disabled>Delete Selected</button>'+\n          '</div>'+\n          '<div id=\"bbReportTransactionsList\" class=\"bb-report-transactions\"></div>'+\n        '</div>';\n\n      card.appendChild(root);\n\n      const filter=q('#bbCalcReportFilter');\n      const date=q('#bbCalcReportDate');\n      specificDate=todayKey();\n      date.value=specificDate;\n\n      filter.addEventListener('change',()=>{\n        mode=filter.value;\n        selected.clear();\n        date.hidden=mode!=='date';\n        if(mode==='date'&&!date.value)date.value=todayKey();\n        specificDate=date.value||todayKey();\n        render();\n      });\n\n      date.addEventListener('change',()=>{\n        specificDate=date.value||todayKey();\n        selected.clear();\n        render();\n      });\n\n      q('#bbReportSelectAll').addEventListener('change',event=>{\n        const entries=filteredEntries();\n        if(event.target.checked){\n          entries.forEach(entry=>selected.add(clean(entry.id)));\n        }else{\n          entries.forEach(entry=>selected.delete(clean(entry.id)));\n        }\n        render();\n      });\n\n      q('#bbCalcDeleteSelected').addEventListener('click',()=>{\n        const ids=Array.from(selected).filter(Boolean);\n        if(!ids.length)return;\n\n        const ok=window.confirm(\n          'Delete '+ids.length+' selected calculation'+(ids.length===1?'':'s')+\n          '? This cannot be undone and the report will recalculate.'\n        );\n        if(!ok)return;\n\n        let deleted=0;\n        ids.forEach(id=>{\n          const button=Array.from(document.querySelectorAll('[data-calc-history-delete]'))\n            .find(el=>clean(el.dataset.calcHistoryDelete)===id);\n          if(button){\n            button.click();\n            deleted++;\n          }\n        });\n\n        selected.clear();\n\n        if(deleted<ids.length){\n          window.alert('Some history entries were still loading. Please try Delete Selected again.');\n        }\n\n        setTimeout(render,0);\n      });\n    }\n\n    const legacyList=q('#calcHistoryList');\n    if(legacyList&&!legacyList.__bbReportObserved){\n      legacyList.__bbReportObserved=true;\n      new MutationObserver(()=>setTimeout(render,0))\n        .observe(legacyList,{childList:true,subtree:true});\n    }\n\n    return true;\n  }\n\n  function render(){\n    if(!ensureUi())return;\n\n    const entries=filteredEntries();\n    const existingIds=new Set(historyEntries().map(entry=>clean(entry.id)));\n    Array.from(selected).forEach(id=>{if(!existingIds.has(id))selected.delete(id);});\n\n    const customers=new Set(\n      entries.map(entryCustomerKey).filter(Boolean)\n    );\n    const totalQty=entries.reduce((sum,entry)=>sum+entryQty(entry),0);\n    const totalSales=entries.reduce((sum,entry)=>sum+entryGrandUSD(entry),0);\n    const products=productSummary(entries);\n\n    q('#bbReportTransactions').textContent=String(entries.length);\n    q('#bbReportCustomers').textContent=String(customers.size);\n    q('#bbReportQty').textContent=num(totalQty).toLocaleString('en-US');\n    q('#bbReportSales').textContent=moneyUSD(totalSales);\n    q('#bbReportProductCount').textContent=\n      products.length+' product'+(products.length===1?'':'s');\n\n    const dateInput=q('#bbCalcReportDate');\n    if(mode==='today'){\n      q('#bbReportRangeLabel').textContent='Today';\n    }else if(mode==='date'){\n      q('#bbReportRangeLabel').textContent=dateInput.value||specificDate||'Specific Date';\n    }else{\n      q('#bbReportRangeLabel').textContent='All History';\n    }\n\n    const productBox=q('#bbReportProducts');\n    if(!products.length){\n      productBox.innerHTML='<div class=\"bb-report-empty\">No product calculations for this filter.</div>';\n    }else{\n      productBox.innerHTML=products.map(item=>\n        '<div class=\"bb-report-product\">'+\n          '<span>'+esc(item.name)+'</span>'+\n          '<strong>'+num(item.qty).toLocaleString('en-US')+' QTY</strong>'+\n        '</div>'\n      ).join('');\n    }\n\n    const txBox=q('#bbReportTransactionsList');\n    if(!entries.length){\n      txBox.innerHTML='<div class=\"bb-report-empty\">No calculator transactions for this filter.</div>';\n    }else{\n      txBox.innerHTML=entries.map(entry=>{\n        const id=clean(entry.id);\n        const lines=Array.isArray(entry?.lines)?entry.lines:[];\n        const qty=entryQty(entry);\n        const total=entryGrandUSD(entry);\n        const checked=selected.has(id)?' checked':'';\n\n        return '<div class=\"bb-report-tx\">'+\n          '<div class=\"bb-report-tx-top\">'+\n            '<input type=\"checkbox\" class=\"bb-report-tx-check\" data-bb-report-id=\"'+esc(id)+'\"'+checked+'>'+\n            '<div class=\"bb-report-tx-main\">'+\n              '<strong>'+esc(entry.customerName||'Customer')+'</strong>'+\n              '<small>'+esc(formatDateTime(entry.createdAt))+\n                (entry.locationCode?' · '+esc(entry.locationCode):'')+\n                ' · '+num(qty).toLocaleString('en-US')+' QTY</small>'+\n            '</div>'+\n            '<div class=\"bb-report-tx-total\">'+esc(entryMoney(entry,total))+'</div>'+\n          '</div>'+\n          '<div class=\"bb-report-tx-lines\">'+\n            lines.map(line=>{\n              const lineUSD=Math.max(0,num(line.qty))*Math.max(0,num(line.usdPrice));\n              return '<div class=\"bb-report-tx-line\">'+\n                '<span>'+esc(line.productName||line.productCode||'Product')+\n                  ' × '+num(line.qty).toLocaleString('en-US')+'</span>'+\n                '<strong>'+esc(entryMoney(entry,lineUSD))+'</strong>'+\n              '</div>';\n            }).join('')+\n          '</div>'+\n        '</div>';\n      }).join('');\n    }\n\n    txBox.querySelectorAll('[data-bb-report-id]').forEach(box=>{\n      box.addEventListener('change',()=>{\n        const id=clean(box.dataset.bbReportId);\n        if(box.checked)selected.add(id);\n        else selected.delete(id);\n        renderSelectionState(entries);\n      });\n    });\n\n    renderSelectionState(entries);\n  }\n\n  function renderSelectionState(entries){\n    const visibleIds=entries.map(entry=>clean(entry.id)).filter(Boolean);\n    const visibleSelected=visibleIds.filter(id=>selected.has(id)).length;\n\n    const selectAll=q('#bbReportSelectAll');\n    selectAll.checked=visibleIds.length>0&&visibleSelected===visibleIds.length;\n    selectAll.indeterminate=visibleSelected>0&&visibleSelected<visibleIds.length;\n\n    const del=q('#bbCalcDeleteSelected');\n    del.disabled=visibleSelected===0;\n    del.textContent=visibleSelected\n      ? 'Delete Selected ('+visibleSelected+')'\n      : 'Delete Selected';\n  }\n\n  function boot(){\n    if(!ensureUi()){\n      setTimeout(boot,80);\n      return;\n    }\n    render();\n    setTimeout(render,250);\n    setTimeout(render,900);\n  }\n\n  window.addEventListener('storage',event=>{\n    if(event.key===HISTORY_KEY)render();\n  });\n\n  if(document.readyState==='loading'){\n    document.addEventListener('DOMContentLoaded',boot,{once:true});\n  }else{\n    boot();\n  }\n})();\n"+'</scr'+'ipt>';
 
       const hc=html.toLowerCase().indexOf('</head>');
-      html=html.slice(0,hc)+mobileStyle+'\n'+html.slice(hc);
+      html=html.slice(0,hc)+mobileStyle+'\n'+mobileReportStyle+'\n'+html.slice(hc);
       const bc=html.toLowerCase().lastIndexOf('</body>');
-      html=html.slice(0,bc)+mobileScript+'\n'+html.slice(bc);
+      html=html.slice(0,bc)+mobileScript+'\n'+mobileReportScript+'\n'+html.slice(bc);
     }
 
     document.open();
