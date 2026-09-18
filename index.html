@@ -131,7 +131,7 @@ html,body{margin:0;min-height:100%;background:#eef3f8;font-family:Arial,sans-ser
         .calc-total-summary small{font-size:9px!important}
         .calc-total-summary strong{font-size:22px!important}
         .calc-actions{gap:6px!important;margin-top:7px!important}
-        .calc-actions .btn{min-height:40px!important;padding:7px 10px!important;font-size:10px!important}
+        .calc-actions .btn{min-height:40px!important;padding:7px 10px!important;font-size:10px!important}\n        #calcClearBtn{display:none!important}\n        .calc-actions{grid-template-columns:1fr!important}\n        #calcNewBtn{width:100%!important}
 
         @media(max-width:380px){
           .app{padding:6px 6px 16px!important}
@@ -181,6 +181,25 @@ html,body{margin:0;min-height:100%;background:#eef3f8;font-family:Arial,sans-ser
           const lines=q('#calcLines');if(lines&&!lines.__bbMobileCalcObserved){lines.__bbMobileCalcObserved=true;new MutationObserver(()=>requestAnimationFrame(sync)).observe(lines,{childList:true,subtree:true});}
           ['calcCustomerSearch','calcLocation','calcCurrency','calcRate'].forEach(id=>{const el=document.getElementById(id);if(el&&!el.__bbMobileCalcBound){el.__bbMobileCalcBound=true;el.addEventListener('input',updateBar);el.addEventListener('change',updateBar);}});
           ['calcCurrencyUSD','calcCurrencyKHR'].forEach(id=>{const el=document.getElementById(id);if(el&&!el.__bbMobileCalcBound){el.__bbMobileCalcBound=true;el.addEventListener('click',()=>setTimeout(updateBar,0));}});
+          const newBtn=q('#calcNewBtn');
+          if(newBtn&&!newBtn.__bbMobileNewBound){
+            newBtn.__bbMobileNewBound=true;
+            newBtn.addEventListener('click',()=>{
+              setTimeout(()=>{
+                const customer=q('#calcCustomerSearch');
+                if(customer){
+                  customer.value='';
+                  customer.dispatchEvent(new Event('input',{bubbles:true}));
+                }
+                const summary=q('#calcCustomerSummary');
+                if(summary)summary.innerHTML='';
+                const rate=q('#calcRate');
+                if(rate)rate.dispatchEvent(new Event('input',{bubbles:true}));
+                updateBar();
+                customer?.focus();
+              },0);
+            });
+          }
         }
         function boot(){if(!ensureUi()){setTimeout(boot,80);return;}observe();sync();setTimeout(sync,250);setTimeout(sync,800);}
         if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',boot,{once:true});else boot();
