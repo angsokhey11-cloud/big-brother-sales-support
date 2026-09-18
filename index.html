@@ -58,7 +58,8 @@ html,body{margin:0;min-height:100%;background:#eef3f8;font-family:Arial,sans-ser
     try{
       const params=new URLSearchParams(location.search);
       const inMobileShell=window.top!==window && /\/mobile\.html$/i.test(window.top.location.pathname);
-      mobileCalculator=inMobileShell && params.get('view')==='calculator';
+      const explicitMobile=params.get('mobile')==='1';
+      mobileCalculator=(explicitMobile || inMobileShell) && params.get('view')==='calculator';
     }catch(_){mobileCalculator=false;}
 
     if(mobileCalculator){
@@ -151,7 +152,10 @@ html,body{margin:0;min-height:100%;background:#eef3f8;font-family:Arial,sans-ser
         .calc-total-summary small{font-size:9px!important}
         .calc-total-summary strong{font-size:22px!important}
         .calc-actions{gap:6px!important;margin-top:7px!important}
-        .calc-actions .btn{min-height:40px!important;padding:7px 10px!important;font-size:10px!important}\n        #calcClearBtn{display:none!important}\n        .calc-actions{grid-template-columns:1fr!important}\n        #calcNewBtn{width:100%!important}
+        .calc-actions .btn{min-height:40px!important;padding:7px 10px!important;font-size:10px!important}
+        #calcClearBtn{display:none!important}
+        .calc-actions{grid-template-columns:1fr!important}
+        #calcNewBtn{width:100%!important}
 
         @media(max-width:380px){
           .app{padding:6px 6px 16px!important}
@@ -180,7 +184,67 @@ html,body{margin:0;min-height:100%;background:#eef3f8;font-family:Arial,sans-ser
           return clean(entry?.customerName).toLowerCase()===name&&(!location||clean(entry?.locationCode).toLowerCase()===location);
         }
         function lastTransaction(){return historyEntries().find(sameCustomer)||null;}
-        function money(value,curr){if(curr==='KHR')return Math.round(value).toLocaleString('en-US')+' ៛';return '
+        function money(value,curr){
+          if(curr==='KHR')return Math.round(num(value)).toLocaleString('en-US')+' ៛';
+          return String.fromCharCode(36)+num(value).toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2});
+        }
+        function transactionTotals(entry){
+          const subtotal=(Array.isArray(entry?.lines)?entry.lines:[]).reduce((sum,line)=>sum+Math.max(0,num(line.qty))*Math.max(0,num(line.usdPrice)),0);
+          return {subtotal,grand:Math.max(0,subtotal-Math.max(0,num(entry?.discountUSD)))};
+        }
+        function syncPreviewButton(){
+          const b=q('#bbCalcPreviewLast');if(!b)return;
+          b.hidden=!clean(q('#calcCustomerSearch')?.value);
+        }
+        function closeLastTransaction(){
+          const modal=q('#bbCalcLastTxnModal');if(modal)modal.hidden=true;
+        }
+        function showLastTransaction(){
+          const modal=q('#bbCalcLastTxnModal'),body=q('#bbCalcLastTxnBody'),title=q('#bbCalcLastTxnCustomer');
+          if(!modal||!body||!title)return;
+          const customer=clean(q('#calcCustomerSearch')?.value)||'Customer';
+          title.textContent=customer;
+          const entry=lastTransaction();
+          body.textContent='';
+          if(!entry){
+            const empty=document.createElement('div');
+            empty.className='bb-lasttxn-empty';
+            empty.textContent='No previous transaction found for this customer on this device.';
+            body.appendChild(empty);
+            modal.hidden=false;
+            return;
+          }
+          const curr=entry.currency==='KHR'?'KHR':'USD';
+          const rate=Math.max(1,num(entry.rate)||4060);
+          const totals=transactionTotals(entry);
+          const meta=document.createElement('div');
+          meta.className='bb-lasttxn-meta';
+          const date=new Date(num(entry.createdAt));
+          meta.textContent='Last calculation: '+(Number.isNaN(date.getTime())?'-':date.toLocaleString())+(clean(entry.locationCode)?' · '+clean(entry.locationCode):'');
+          body.appendChild(meta);
+          const products=document.createElement('div');
+          products.className='bb-lasttxn-products';
+          (Array.isArray(entry.lines)?entry.lines:[]).forEach(line=>{
+            const row=document.createElement('div');row.className='bb-lasttxn-row';
+            const info=document.createElement('div');
+            const name=document.createElement('strong');name.textContent=clean(line.productName)||'Product';
+            const detail=document.createElement('small');
+            const unitPrice=curr==='KHR'?num(line.usdPrice)*rate:num(line.usdPrice);
+            detail.textContent='QTY '+num(line.qty).toLocaleString('en-US')+' · '+money(unitPrice,curr)+' each';
+            info.append(name,detail);
+            const amount=document.createElement('div');amount.className='bb-lasttxn-amount';
+            amount.textContent=money(num(line.qty)*unitPrice,curr);
+            row.append(info,amount);
+            products.appendChild(row);
+          });
+          body.appendChild(products);
+          const total=document.createElement('div');total.className='bb-lasttxn-total';
+          const label=document.createElement('small');label.textContent=num(entry.discountUSD)>0?'TOTAL AFTER DISCOUNT':'TOTAL';
+          const strong=document.createElement('strong');strong.textContent=money(curr==='KHR'?totals.grand*rate:totals.grand,curr);
+          total.append(label,strong);
+          body.appendChild(total);
+          modal.hidden=false;
+        }
         function ensureUi(){
           const shell=q('#view-calculator .calc-shell'),card=q('#view-calculator .calc-control-card');if(!shell||!card)return false;
           let bar=q('#bbCalcCompactBar');
