@@ -100,6 +100,26 @@ html,body{margin:0;min-height:100%;background:#eef3f8;font-family:Arial,sans-ser
         #bbCalcDone{display:none;width:100%;min-height:38px;margin-top:7px;border:0;border-radius:9px;background:#eaf3ff;color:#1768d5;font-size:11px;font-weight:900}
         .bb-mobile-editing #bbCalcDone{display:block!important}
 
+        #bbCalcPreviewLast{display:block;width:100%;min-height:38px;margin-top:7px;border:1px solid #b9d7ff;border-radius:9px;background:#eef6ff;color:#1768d5;font-size:11px;font-weight:900}
+        #bbCalcPreviewLast[hidden]{display:none!important}
+        #bbCalcLastTxnModal{position:fixed;inset:0;z-index:99999;display:flex;align-items:flex-end;justify-content:center;background:rgba(14,31,53,.46);padding:12px}
+        #bbCalcLastTxnModal[hidden]{display:none!important}
+        .bb-lasttxn-sheet{width:min(100%,520px);max-height:82vh;overflow:auto;background:#fff;border-radius:18px 18px 12px 12px;padding:14px;box-shadow:0 20px 50px rgba(15,38,68,.24)}
+        .bb-lasttxn-head{display:flex;align-items:flex-start;justify-content:space-between;gap:10px;margin-bottom:10px}
+        .bb-lasttxn-head small{display:block;color:#71869c;font-size:9px;font-weight:900;text-transform:uppercase;letter-spacing:.5px}
+        .bb-lasttxn-head strong{display:block;margin-top:3px;color:#173f77;font-size:16px}
+        .bb-lasttxn-close{border:0;background:#edf3f9;color:#49637e;width:34px;height:34px;border-radius:9px;font-size:16px;font-weight:900}
+        .bb-lasttxn-meta{padding:9px 10px;border-radius:10px;background:#f6f9fc;color:#60758c;font-size:10px;font-weight:800;line-height:1.45;margin-bottom:9px}
+        .bb-lasttxn-products{display:grid;gap:6px}
+        .bb-lasttxn-row{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:8px;align-items:center;border:1px solid #e0e8f1;border-radius:10px;padding:8px 9px}
+        .bb-lasttxn-row strong{display:block;color:#173f77;font-size:11px}
+        .bb-lasttxn-row small{display:block;margin-top:2px;color:#71869c;font-size:9px}
+        .bb-lasttxn-amount{color:#173f77;font-size:11px;font-weight:900;text-align:right;white-space:nowrap}
+        .bb-lasttxn-total{display:flex;justify-content:space-between;gap:10px;align-items:center;margin-top:10px;padding:10px 11px;border-radius:10px;background:#173f77;color:#fff}
+        .bb-lasttxn-total small{font-size:9px;font-weight:800;opacity:.8}
+        .bb-lasttxn-total strong{font-size:17px}
+        .bb-lasttxn-empty{padding:24px 12px;text-align:center;color:#60758c;font-size:12px;font-weight:800}
+
         .calc-products-head{margin-bottom:7px!important;align-items:center!important}
         .calc-products-head h2{font-size:15px!important;margin:0!important}
         .calc-product-count{font-size:9px!important;margin-top:1px!important}
@@ -144,11 +164,166 @@ html,body{margin:0;min-height:100%;background:#eef3f8;font-family:Arial,sans-ser
 
       const mobileScript=`<scr`+`ipt id="bb-mobile-calculator-script">(function(){
         'use strict';
-        let manualExpanded=false,lastCount=0;
+        let manualExpanded=false,lastCount=0,selectedHistoryCustomerKey='';
+        const HISTORY_KEY='bb_sales_support_calc_history_v1';
         const q=s=>document.querySelector(s);
         const clean=v=>String(v==null?'':v).trim();
+        const num=v=>{const n=Number(v);return Number.isFinite(n)?n:0;};
         function selectedText(sel){if(!sel)return'';const o=sel.options&&sel.selectedIndex>=0?sel.options[sel.selectedIndex]:null;return clean(o?o.textContent:sel.value);}
         function currency(){const s=q('#calcCurrency');return s&&s.value==='KHR'?'KHR':'USD';}
+        function historyEntries(){try{const x=JSON.parse(localStorage.getItem(HISTORY_KEY)||'[]');return Array.isArray(x)?x:[];}catch(_){return[];}}
+        function sameCustomer(entry){
+          const name=clean(q('#calcCustomerSearch')?.value).toLowerCase();
+          const location=clean(q('#calcLocation')?.value).toLowerCase();
+          if(!name)return false;
+          if(selectedHistoryCustomerKey&&clean(entry?.customerKey)===selectedHistoryCustomerKey)return true;
+          return clean(entry?.customerName).toLowerCase()===name&&(!location||clean(entry?.locationCode).toLowerCase()===location);
+        }
+        function lastTransaction(){return historyEntries().find(sameCustomer)||null;}
+        function money(value,curr){if(curr==='KHR')return Math.round(value).toLocaleString('en-US')+' ៛';return '
+        function ensureUi(){
+          const shell=q('#view-calculator .calc-shell'),card=q('#view-calculator .calc-control-card');if(!shell||!card)return false;
+          let bar=q('#bbCalcCompactBar');
+          if(!bar){bar=document.createElement('div');bar.id='bbCalcCompactBar';bar.innerHTML='<div class="bb-calc-summary-main"><strong class="bb-calc-summary-customer">Customer</strong><span class="bb-calc-summary-meta">—</span></div><button type="button" class="bb-calc-edit">✎ Edit</button>';shell.insertBefore(bar,card);bar.querySelector('.bb-calc-edit').addEventListener('click',()=>{manualExpanded=true;sync();});}
+          let done=q('#bbCalcDone');
+          if(!done){done=document.createElement('button');done.type='button';done.id='bbCalcDone';done.textContent='Done · Back to Products';card.appendChild(done);done.addEventListener('click',()=>{manualExpanded=false;sync();q('#calcProductSearch')?.focus();});}
+          let preview=q('#bbCalcPreviewLast');
+          if(!preview){
+            preview=document.createElement('button');preview.type='button';preview.id='bbCalcPreviewLast';preview.textContent='Preview Last Transaction';preview.hidden=true;
+            const summary=q('#calcCustomerSummary');if(summary)summary.insertAdjacentElement('afterend',preview);else card.appendChild(preview);
+            preview.addEventListener('click',showLastTransaction);
+          }
+          let modal=q('#bbCalcLastTxnModal');
+          if(!modal){
+            modal=document.createElement('div');modal.id='bbCalcLastTxnModal';modal.hidden=true;
+            modal.innerHTML='<div class="bb-lasttxn-sheet" role="dialog" aria-modal="true" aria-label="Last customer transaction"><div class="bb-lasttxn-head"><div><small>Previous Customer Calculation</small><strong id="bbCalcLastTxnCustomer">Customer</strong></div><button type="button" class="bb-lasttxn-close" aria-label="Close">×</button></div><div id="bbCalcLastTxnBody"></div></div>';
+            document.body.appendChild(modal);
+            modal.querySelector('.bb-lasttxn-close').addEventListener('click',closeLastTransaction);
+            modal.addEventListener('click',event=>{if(event.target===modal)closeLastTransaction();});
+          }
+          syncPreviewButton();
+          return true;
+        }
+        function updateBar(){
+          const bar=q('#bbCalcCompactBar');if(!bar)return;
+          const customer=clean(q('#calcCustomerSearch')?.value)||'Customer';
+          const location=selectedText(q('#calcLocation'))||'Location';
+          const rate=clean(q('#calcRate')?.value)||'—';
+          bar.querySelector('.bb-calc-summary-customer').textContent=customer;
+          bar.querySelector('.bb-calc-summary-meta').textContent=location+'  ·  '+currency()+'  ·  '+rate;
+          syncPreviewButton();
+        }
+        function sync(){
+          if(!ensureUi())return;
+          const card=q('#view-calculator .calc-control-card'),bar=q('#bbCalcCompactBar'),lines=q('#calcLines');
+          const count=lines?lines.querySelectorAll('.calc-product-row').length:0;
+          if(count>0&&lastCount===0&&!manualExpanded)manualExpanded=false;
+          if(count===0)manualExpanded=false;
+          const collapsed=count>0&&!manualExpanded;
+          card.style.display=collapsed?'none':'';
+          card.classList.toggle('bb-mobile-editing',count>0&&manualExpanded);
+          bar.classList.toggle('show',collapsed);
+          updateBar();lastCount=count;
+        }
+        function observe(){
+          const lines=q('#calcLines');if(lines&&!lines.__bbMobileCalcObserved){lines.__bbMobileCalcObserved=true;new MutationObserver(()=>requestAnimationFrame(sync)).observe(lines,{childList:true,subtree:true});}
+          ['calcCustomerSearch','calcLocation','calcCurrency','calcRate'].forEach(id=>{const el=document.getElementById(id);if(el&&!el.__bbMobileCalcBound){el.__bbMobileCalcBound=true;el.addEventListener('input',()=>{if(id==='calcCustomerSearch')selectedHistoryCustomerKey='';updateBar();});el.addEventListener('change',updateBar);}});
+          const suggestions=q('#calcCustomerSuggestions');
+          if(suggestions&&!suggestions.__bbMobilePreviewBound){
+            suggestions.__bbMobilePreviewBound=true;
+            suggestions.addEventListener('click',event=>{
+              const button=event.target.closest?.('.customer-suggestion');
+              if(!button)return;
+              selectedHistoryCustomerKey=clean(button.dataset.key);
+              setTimeout(()=>{updateBar();syncPreviewButton();},0);
+            });
+          }
+          ['calcCurrencyUSD','calcCurrencyKHR'].forEach(id=>{const el=document.getElementById(id);if(el&&!el.__bbMobileCalcBound){el.__bbMobileCalcBound=true;el.addEventListener('click',()=>setTimeout(updateBar,0));}});
+          const newBtn=q('#calcNewBtn');
+          if(newBtn&&!newBtn.__bbMobileNewBound){
+            newBtn.__bbMobileNewBound=true;
+            newBtn.addEventListener('click',()=>{
+              setTimeout(()=>{
+                const customer=q('#calcCustomerSearch');
+                selectedHistoryCustomerKey='';
+                if(customer){
+                  customer.value='';
+                  customer.dispatchEvent(new Event('input',{bubbles:true}));
+                }
+                const summary=q('#calcCustomerSummary');
+                if(summary)summary.innerHTML='';
+                const rate=q('#calcRate');
+                if(rate)rate.dispatchEvent(new Event('input',{bubbles:true}));
+                updateBar();
+                customer?.focus();
+              },0);
+            });
+          }
+        }
+        function boot(){if(!ensureUi()){setTimeout(boot,80);return;}observe();sync();setTimeout(sync,250);setTimeout(sync,800);}
+        if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',boot,{once:true});else boot();
+      })();</scr`+`ipt>`;
+
+      const hc=html.toLowerCase().indexOf('</head>');
+      html=html.slice(0,hc)+mobileStyle+'\n'+html.slice(hc);
+      const bc=html.toLowerCase().lastIndexOf('</body>');
+      html=html.slice(0,bc)+mobileScript+'\n'+html.slice(bc);
+    }
+
+    document.open();
+    document.write(html);
+    document.close();
+  }catch(error){
+    console.error(error);
+    document.body.innerHTML='<div class="bb-loader"><div class="bb-card">Could not open Sales Support<div class="bb-sub">'+String(error?.message||error)+'</div></div></div>';
+  }
+})();
+</script>
+</body>
+</html>+num(value).toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2});}
+        function transactionTotals(entry){
+          const subtotal=(Array.isArray(entry?.lines)?entry.lines:[]).reduce((sum,line)=>sum+Math.max(0,num(line.qty))*Math.max(0,num(line.usdPrice)),0);
+          return {subtotal,grand:Math.max(0,subtotal-Math.max(0,num(entry?.discountUSD)))};
+        }
+        function syncPreviewButton(){const b=q('#bbCalcPreviewLast');if(!b)return;b.hidden=!clean(q('#calcCustomerSearch')?.value);}
+        function closeLastTransaction(){const modal=q('#bbCalcLastTxnModal');if(modal)modal.hidden=true;}
+        function showLastTransaction(){
+          const modal=q('#bbCalcLastTxnModal'),body=q('#bbCalcLastTxnBody'),title=q('#bbCalcLastTxnCustomer');
+          if(!modal||!body||!title)return;
+          const customer=clean(q('#calcCustomerSearch')?.value)||'Customer';
+          title.textContent=customer;
+          const entry=lastTransaction();
+          body.textContent='';
+          if(!entry){
+            const empty=document.createElement('div');empty.className='bb-lasttxn-empty';empty.textContent='No previous transaction found for this customer on this device.';body.appendChild(empty);modal.hidden=false;return;
+          }
+          const curr=entry.currency==='KHR'?'KHR':'USD';
+          const rate=Math.max(1,num(entry.rate)||4060);
+          const totals=transactionTotals(entry);
+          const meta=document.createElement('div');meta.className='bb-lasttxn-meta';
+          const date=new Date(num(entry.createdAt));
+          meta.textContent='Last calculation: '+(Number.isNaN(date.getTime())?'-':date.toLocaleString())+' · '+clean(entry.locationCode||'');
+          body.appendChild(meta);
+          const products=document.createElement('div');products.className='bb-lasttxn-products';
+          (Array.isArray(entry.lines)?entry.lines:[]).forEach(line=>{
+            const row=document.createElement('div');row.className='bb-lasttxn-row';
+            const info=document.createElement('div');
+            const name=document.createElement('strong');name.textContent=clean(line.productName)||'Product';
+            const detail=document.createElement('small');
+            const unitPrice=curr==='KHR'?num(line.usdPrice)*rate:num(line.usdPrice);
+            detail.textContent='QTY '+num(line.qty).toLocaleString('en-US')+' · '+money(unitPrice,curr)+' each';
+            info.append(name,detail);
+            const amount=document.createElement('div');amount.className='bb-lasttxn-amount';
+            const lineTotal=num(line.qty)*unitPrice;amount.textContent=money(lineTotal,curr);
+            row.append(info,amount);products.appendChild(row);
+          });
+          body.appendChild(products);
+          const total=document.createElement('div');total.className='bb-lasttxn-total';
+          const label=document.createElement('small');label.textContent=num(entry.discountUSD)>0?'TOTAL AFTER DISCOUNT':'TOTAL';
+          const strong=document.createElement('strong');strong.textContent=money(curr==='KHR'?totals.grand*rate:totals.grand,curr);
+          total.append(label,strong);body.appendChild(total);
+          modal.hidden=false;
+        }
         function ensureUi(){
           const shell=q('#view-calculator .calc-shell'),card=q('#view-calculator .calc-control-card');if(!shell||!card)return false;
           let bar=q('#bbCalcCompactBar');
