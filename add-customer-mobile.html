@@ -13,7 +13,7 @@ html,body{margin:0;width:100%;height:100%;overflow:hidden;background:#f4f7fb;fon
 </head>
 <body>
 <div id="boot">Loading Add Customer…</div>
-<iframe id="customerFrame" src="add-customer.html?embed=1&mobileSkin=1&v=20260914-2" title="Add Customer" allow="geolocation"></iframe>
+<iframe id="customerFrame" src="add-customer.html?embed=1&mobileSkin=1&v=20260918-gps1" title="Add Customer" allow="geolocation"></iframe>
 <script>
 (function(){
 'use strict';
@@ -99,6 +99,234 @@ function compactCopy(doc){
   const clear=doc.getElementById('clearBtn');if(clear)clear.textContent='Clear';
 }
 
+
+const GPS_TARGET_METERS=15;
+const GPS_GOOD_METERS=35;
+const GPS_MAX_SAVE_METERS=50;
+const GPS_MAX_WAIT_MS=20000;
+let mobileGps={watchId:null,timer:null,best:null,samples:[],syncing:false,ready:false,doc:null};
+
+function gpsDistanceMeters(a,b){
+  if(!a||!b)return Infinity;
+  const R=6371000,toRad=x=>Number(x)*Math.PI/180;
+  const lat1=toRad(a.latitude),lat2=toRad(b.latitude);
+  const dLat=toRad(Number(b.latitude)-Number(a.latitude));
+  const dLng=toRad(Number(b.longitude)-Number(a.longitude));
+  const h=Math.sin(dLat/2)**2+Math.cos(lat1)*Math.cos(lat2)*Math.sin(dLng/2)**2;
+  return 2*R*Math.atan2(Math.sqrt(h),Math.sqrt(1-h));
+}
+
+function mobileMapUrl(c){
+  return 'https://www.google.com/maps?q='+Number(c.latitude).toFixed(7)+','+Number(c.longitude).toFixed(7);
+}
+
+function innerMessage(doc,text,type){
+  const el=doc.getElementById('message');
+  if(!el)return;
+  el.textContent=text||'';
+  el.className='message '+(type||'error');
+  el.hidden=!text;
+}
+
+function stopMobileGpsWatch(){
+  if(mobileGps.watchId!==null&&navigator.geolocation){
+    try{navigator.geolocation.clearWatch(mobileGps.watchId)}catch(_){}
+    mobileGps.watchId=null;
+  }
+  if(mobileGps.timer){clearTimeout(mobileGps.timer);mobileGps.timer=null}
+  mobileGps.syncing=false;
+}
+
+function mobileGpsStable(){
+  if(!mobileGps.best||mobileGps.samples.length<3)return false;
+  const best=mobileGps.best.coords;
+  const recent=mobileGps.samples.slice(-3);
+  const radius=Math.max(20,Math.min(45,Number(best.accuracy||50)*1.35));
+  return recent.every(p=>gpsDistanceMeters(best,p.coords)<=radius);
+}
+
+function renderMobileGps(doc){
+  const sync=doc.getElementById('syncBtn');
+  const status=doc.getElementById('gpsStatus');
+  const accEl=doc.getElementById('accuracy');
+  const lat=doc.getElementById('latText');
+  const lng=doc.getElementById('lngText');
+  const mapText=doc.getElementById('mapLinkText');
+  const open=doc.getElementById('openMapBtn');
+  if(!sync||!status||!accEl||!lat||!lng||!mapText||!open)return;
+
+  sync.disabled=!!mobileGps.syncing;
+  sync.textContent=mobileGps.syncing?'Improving GPS…':'◎ Sync Device GPS';
+
+  if(!mobileGps.best){
+    lat.textContent='—';lng.textContent='—';
+    mapText.textContent='Google Maps link will be generated automatically.';
+    open.disabled=true;
+    if(mobileGps.syncing){
+      status.textContent='Searching GPS…';status.className='gps-status warn';
+      accEl.textContent='Collecting several fresh GPS samples. Please stay at the customer location and keep the phone still.';
+    }else{
+      status.textContent='GPS required';status.className='gps-status warn';
+      accEl.textContent='Accuracy: tap Sync Device GPS before saving the customer.';
+    }
+    return;
+  }
+
+  const c=mobileGps.best.coords;
+  const acc=Math.round(Number(c.accuracy)||0);
+  lat.textContent=Number(c.latitude).toFixed(7);
+  lng.textContent=Number(c.longitude).toFixed(7);
+  mapText.textContent=mobileMapUrl(c);
+  open.disabled=false;
+
+  if(mobileGps.ready){
+    status.textContent='Locked · ±'+acc+'m';
+    status.className='gps-status good';
+    accEl.textContent='GPS quality locked: ±'+acc+' meters · '+mobileGps.samples.length+' sample(s). Safe to save.';
+  }else if(mobileGps.syncing){
+    status.textContent='Best ±'+acc+'m';
+    status.className='gps-status warn';
+    accEl.textContent='Improving GPS… best so far ±'+acc+' meters · '+mobileGps.samples.length+' sample(s). Target is ±'+GPS_GOOD_METERS+'m or better.';
+  }else{
+    status.textContent='Weak · ±'+acc+'m';
+    status.className='gps-status bad';
+    accEl.textContent='GPS is too weak to save safely (±'+acc+'m). Move outdoors / near a window, turn on Precise Location, then Sync again.';
+  }
+}
+
+function resetMobileGps(doc){
+  stopMobileGpsWatch();
+  mobileGps.best=null;
+  mobileGps.samples=[];
+  mobileGps.ready=false;
+  mobileGps.doc=doc||mobileGps.doc;
+  if(doc)renderMobileGps(doc);
+}
+
+function finishMobileGps(doc){
+  stopMobileGpsWatch();
+  if(!mobileGps.best){renderMobileGps(doc);return}
+  const acc=Number(mobileGps.best.coords.accuracy)||9999;
+  mobileGps.ready=acc<=GPS_MAX_SAVE_METERS && mobileGps.samples.length>=2;
+  renderMobileGps(doc);
+  if(!mobileGps.ready){
+    innerMessage(doc,'GPS accuracy is still too weak (±'+Math.round(acc)+'m). Please move to a more open area and Sync Device GPS again.','error');
+  }
+}
+
+function startMobileGps(doc){
+  innerMessage(doc,'');
+  if(!('geolocation' in navigator)){
+    innerMessage(doc,'This device/browser does not support location services.','error');
+    return;
+  }
+  resetMobileGps(doc);
+  mobileGps.syncing=true;
+  renderMobileGps(doc);
+
+  const onPosition=pos=>{
+    if(!pos||!pos.coords)return;
+    const acc=Number(pos.coords.accuracy);
+    if(!Number.isFinite(acc)||acc<=0)return;
+    mobileGps.samples.push(pos);
+    if(mobileGps.samples.length>12)mobileGps.samples.shift();
+    if(!mobileGps.best||acc<Number(mobileGps.best.coords.accuracy||Infinity)){
+      mobileGps.best=pos;
+    }
+    renderMobileGps(doc);
+
+    const bestAcc=Number(mobileGps.best.coords.accuracy)||9999;
+    if(mobileGps.samples.length>=2&&bestAcc<=GPS_TARGET_METERS){
+      mobileGps.ready=true;stopMobileGpsWatch();renderMobileGps(doc);return;
+    }
+    if(bestAcc<=GPS_GOOD_METERS&&mobileGpsStable()){
+      mobileGps.ready=true;stopMobileGpsWatch();renderMobileGps(doc);
+    }
+  };
+
+  const onError=err=>{
+    if(err&&err.code===1){
+      stopMobileGpsWatch();mobileGps.ready=false;renderMobileGps(doc);
+      innerMessage(doc,'Location permission was denied. Allow Precise Location for this site, then try again.','error');
+      return;
+    }
+    if(!mobileGps.best){
+      const msg=err&&err.code===2
+        ?'Phone location is not available yet. Make sure Location/GPS and Precise Location are turned on.'
+        :'Still waiting for a fresh GPS fix…';
+      const accEl=doc.getElementById('accuracy');if(accEl)accEl.textContent=msg;
+    }
+  };
+
+  mobileGps.watchId=navigator.geolocation.watchPosition(
+    onPosition,onError,
+    {enableHighAccuracy:true,maximumAge:0,timeout:10000}
+  );
+  mobileGps.timer=setTimeout(()=>finishMobileGps(doc),GPS_MAX_WAIT_MS);
+}
+
+function installMobileGpsGuard(doc){
+  const win=frame.contentWindow;
+  if(!doc||!win||win.__bbMobileGpsGuardInstalled)return;
+  win.__bbMobileGpsGuardInstalled=true;
+  mobileGps.doc=doc;
+  resetMobileGps(doc);
+
+  const adapter=win.BBAddCustomerAdapter;
+  if(adapter&&typeof adapter.save==='function'&&!adapter.save.__bbMobileGpsWrapped){
+    const baseSave=adapter.save.bind(adapter);
+    const wrapped=async function(payload){
+      if(!mobileGps.ready||!mobileGps.best){
+        throw new Error('Sync an accurate customer GPS location before saving.');
+      }
+      const p=Object.assign({},payload||{});
+      const c=mobileGps.best.coords;
+      p.latitude=Number(c.latitude).toFixed(7);
+      p.longitude=Number(c.longitude).toFixed(7);
+      p.googleMapsLink=mobileMapUrl(c);
+      p.gpsAccuracyMeters=Math.round(Number(c.accuracy)||0);
+      const result=await baseSave(p);
+      setTimeout(()=>resetMobileGps(doc),0);
+      return result;
+    };
+    wrapped.__bbMobileGpsWrapped=true;
+    adapter.save=wrapped;
+  }
+
+  doc.addEventListener('click',function(e){
+    const btn=e.target&&e.target.closest?e.target.closest('button'):null;
+    if(!btn)return;
+
+    if(btn.id==='syncBtn'){
+      e.preventDefault();e.stopImmediatePropagation();
+      startMobileGps(doc);
+      return;
+    }
+    if(btn.id==='resetGpsBtn'){
+      e.preventDefault();e.stopImmediatePropagation();
+      resetMobileGps(doc);innerMessage(doc,'');
+      return;
+    }
+    if(btn.id==='openMapBtn'&&mobileGps.best){
+      e.preventDefault();e.stopImmediatePropagation();
+      win.open(mobileMapUrl(mobileGps.best.coords),'_blank','noopener');
+      return;
+    }
+    if(btn.id==='saveBtn'){
+      if(mobileGps.syncing){
+        e.preventDefault();e.stopImmediatePropagation();
+        innerMessage(doc,'GPS is still improving. Wait for a green GPS lock before saving.','error');
+        return;
+      }
+      if(!mobileGps.ready||!mobileGps.best){
+        e.preventDefault();e.stopImmediatePropagation();
+        innerMessage(doc,'Sync Device GPS first. Mobile Add Customer requires a GPS lock of ±'+GPS_MAX_SAVE_METERS+'m or better.','error');
+      }
+    }
+  },true);
+}
+
+
 function inject(){
   let doc;
   try{doc=frame.contentDocument||frame.contentWindow.document}catch(_){return}
@@ -106,6 +334,7 @@ function inject(){
   addStyle(doc);
   tuneInputs(doc);
   compactCopy(doc);
+  installMobileGpsGuard(doc);
   boot.classList.add('hide');
 }
 
