@@ -92,6 +92,14 @@ html,body{margin:0;min-height:100%;background:#eef3f8;font-family:Arial,sans-ser
         .calc-status-compact{min-height:13px!important;margin-top:5px!important;font-size:8.5px!important;line-height:1.2!important}
         #calcCustomerSummary{display:none!important}
 
+        #bbCalcPageNav{position:sticky;top:0;z-index:40;display:grid;grid-template-columns:1fr 1fr;gap:5px;padding:4px;margin:0 0 4px;background:#eef4fa;border:1px solid #d5e1ed;border-radius:12px}
+        #bbCalcPageNav button{min-height:40px;border:0;border-radius:9px;background:transparent;color:#60758c;font-size:10px;font-weight:900}
+        #bbCalcPageNav button.active{background:#173f77;color:#fff}
+        #bbCalcPageNav button:focus-visible{outline:2px solid #173f77;outline-offset:2px}
+        #view-calculator .calc-history-card.bb-page-hidden,
+        #view-calculator .calc-control-card.bb-page-hidden,
+        #view-calculator .calc-products-card.bb-page-hidden,
+        #view-calculator .calc-total-card.bb-page-hidden{display:none!important}
         #bbCalcCompactBar{display:none;background:#fff;border:1px solid #dbe5f0;border-radius:12px;padding:8px 9px;min-height:58px;align-items:center;grid-template-columns:minmax(0,1fr) auto;gap:8px}
         #bbCalcCompactBar.show{display:grid!important}
         .bb-calc-summary-main{min-width:0}
@@ -168,7 +176,7 @@ html,body{margin:0;min-height:100%;background:#eef3f8;font-family:Arial,sans-ser
 
       const mobileScript=`<scr`+`ipt id="bb-mobile-calculator-script">(function(){
         'use strict';
-        let manualExpanded=false,lastCount=0,selectedHistoryCustomerKey='';
+        let manualExpanded=false,lastCount=0,selectedHistoryCustomerKey='',mobilePage='calculator';
         const HISTORY_KEY='bb_sales_support_calc_history_v1';
         const q=s=>document.querySelector(s);
         const clean=v=>String(v==null?'':v).trim();
@@ -247,6 +255,22 @@ html,body{margin:0;min-height:100%;background:#eef3f8;font-family:Arial,sans-ser
         }
         function ensureUi(){
           const shell=q('#view-calculator .calc-shell'),card=q('#view-calculator .calc-control-card');if(!shell||!card)return false;
+          let nav=q('#bbCalcPageNav');
+          if(!nav){
+            nav=document.createElement('div');
+            nav.id='bbCalcPageNav';
+            nav.setAttribute('role','tablist');
+            nav.setAttribute('aria-label','Calculator pages');
+            nav.innerHTML='<button type="button" class="active" data-bb-calc-page="calculator" role="tab" aria-selected="true">🧮 Calculator</button><button type="button" data-bb-calc-page="history" role="tab" aria-selected="false">🕘 History & Report</button>';
+            shell.insertBefore(nav,shell.firstChild);
+            nav.querySelectorAll('[data-bb-calc-page]').forEach(button=>{
+              button.addEventListener('click',()=>{
+                mobilePage=button.dataset.bbCalcPage==='history'?'history':'calculator';
+                sync();
+                q('#view-calculator')?.scrollIntoView({block:'start'});
+              });
+            });
+          }
           let bar=q('#bbCalcCompactBar');
           if(!bar){bar=document.createElement('div');bar.id='bbCalcCompactBar';bar.innerHTML='<div class="bb-calc-summary-main"><strong class="bb-calc-summary-customer">Customer</strong><span class="bb-calc-summary-meta">—</span></div><button type="button" class="bb-calc-edit">✎ Edit</button>';shell.insertBefore(bar,card);bar.querySelector('.bb-calc-edit').addEventListener('click',()=>{manualExpanded=true;sync();});}
           let done=q('#bbCalcDone');
@@ -279,15 +303,43 @@ html,body{margin:0;min-height:100%;background:#eef3f8;font-family:Arial,sans-ser
         }
         function sync(){
           if(!ensureUi())return;
-          const card=q('#view-calculator .calc-control-card'),bar=q('#bbCalcCompactBar'),lines=q('#calcLines');
+          const card=q('#view-calculator .calc-control-card');
+          const products=q('#view-calculator .calc-products-card');
+          const total=q('#view-calculator .calc-total-card');
+          const history=q('#view-calculator .calc-history-card');
+          const bar=q('#bbCalcCompactBar');
+          const nav=q('#bbCalcPageNav');
+          const lines=q('#calcLines');
           const count=lines?lines.querySelectorAll('.calc-product-row').length:0;
+          const historyPage=mobilePage==='history';
+
+          nav?.querySelectorAll('[data-bb-calc-page]').forEach(button=>{
+            const active=button.dataset.bbCalcPage===mobilePage;
+            button.classList.toggle('active',active);
+            button.setAttribute('aria-selected',active?'true':'false');
+          });
+
+          history?.classList.toggle('bb-page-hidden',!historyPage);
+          products?.classList.toggle('bb-page-hidden',historyPage);
+          total?.classList.toggle('bb-page-hidden',historyPage);
+
+          if(historyPage){
+            card.classList.add('bb-page-hidden');
+            bar.classList.remove('show');
+            updateBar();
+            lastCount=count;
+            return;
+          }
+
+          card.classList.remove('bb-page-hidden');
           if(count>0&&lastCount===0&&!manualExpanded)manualExpanded=false;
           if(count===0)manualExpanded=false;
           const collapsed=count>0&&!manualExpanded;
           card.style.display=collapsed?'none':'';
           card.classList.toggle('bb-mobile-editing',count>0&&manualExpanded);
           bar.classList.toggle('show',collapsed);
-          updateBar();lastCount=count;
+          updateBar();
+          lastCount=count;
         }
         function observe(){
           const lines=q('#calcLines');if(lines&&!lines.__bbMobileCalcObserved){lines.__bbMobileCalcObserved=true;new MutationObserver(()=>requestAnimationFrame(sync)).observe(lines,{childList:true,subtree:true});}
