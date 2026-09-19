@@ -2356,13 +2356,26 @@
     return location?.locationName || code || "-";
   }
 
+  function customerStoredMapUrl(customer){
+    if(!customer) return null;
+
+    const direct = clean(customer.googleMapsLink);
+    if(direct) return direct;
+
+    const latitude = clean(customer.latitude);
+    const longitude = clean(customer.longitude);
+    if(latitude && longitude){
+      return "https://www.google.com/maps/dir/?api=1&destination=" +
+        encodeURIComponent(latitude + "," + longitude);
+    }
+
+    return null;
+  }
+
   function mapUrl(customer){
     if(!customer) return "";
-    if(clean(customer.googleMapsLink)) return customer.googleMapsLink;
-    if(clean(customer.latitude) && clean(customer.longitude)){
-      return "https://www.google.com/maps/dir/?api=1&destination=" +
-        encodeURIComponent(customer.latitude + "," + customer.longitude);
-    }
+    const storedMap = customerStoredMapUrl(customer);
+    if(storedMap) return storedMap;
     if(clean(customer.address)){
       return "https://www.google.com/maps/search/?api=1&query=" +
         encodeURIComponent(customer.address);
@@ -2652,6 +2665,7 @@
       locationCode:clean($("calcLocation")?.value),
       customerKey:clean(calcSelectedCustomerKey),
       customerName:clean(customer?.name || $("calcCustomerSearch")?.value),
+      customerMapUrl:customerStoredMapUrl(customer),
       lines:calcLines.map(calcMemoryLineCopy)
     };
   }
