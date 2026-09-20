@@ -181,6 +181,44 @@ html,body{margin:0;min-height:100%;background:#eef3f8;font-family:Arial,sans-ser
 
       const mobileScript=`<scr`+`ipt id="bb-mobile-calculator-script">(function(){
         'use strict';
+
+        /* iOS decimal keyboard:
+           keep Calculator decimal entry reliable for values such as 4.20,
+           even when this mobile Calculator is opened outside the dashboard shell. */
+        const isIOSCalc=()=>/iPhone|iPad|iPod/i.test(navigator.userAgent||'')||(navigator.platform==='MacIntel'&&Number(navigator.maxTouchPoints||0)>1);
+        function patchIOSCalcDecimalInput(input){
+          if(!isIOSCalc()||!input||input.dataset.bbCalcIosDecimal==='1')return;
+          input.dataset.bbCalcIosDecimal='1';
+          try{input.type='text'}catch(_){}
+          input.setAttribute('inputmode','decimal');
+          input.setAttribute('pattern','[0-9]*[.,]?[0-9]*');
+          input.setAttribute('autocapitalize','none');
+          input.setAttribute('spellcheck','false');
+        }
+        function patchIOSCalcDecimals(root=document){
+          if(!isIOSCalc())return;
+          root.querySelectorAll?.('#calcRate,#calcDiscount,#calcQtyInput,#calcPriceInput,.calc-price-input').forEach(patchIOSCalcDecimalInput);
+        }
+        if(isIOSCalc()){
+          document.addEventListener('input',event=>{
+            const input=event.target;
+            if(input?.dataset?.bbCalcIosDecimal!=='1')return;
+            const raw=String(input.value||'');
+            if(raw.includes(','))input.value=raw.replace(/,/g,'.');
+          },true);
+          new MutationObserver(records=>{
+            records.forEach(record=>(record.addedNodes||[]).forEach(node=>{
+              if(node?.nodeType===1){
+                if(node.matches?.('#calcRate,#calcDiscount,#calcQtyInput,#calcPriceInput,.calc-price-input'))patchIOSCalcDecimalInput(node);
+                patchIOSCalcDecimals(node);
+              }
+            }));
+          }).observe(document.documentElement,{childList:true,subtree:true});
+          setTimeout(()=>patchIOSCalcDecimals(),40);
+          setTimeout(()=>patchIOSCalcDecimals(),300);
+          setTimeout(()=>patchIOSCalcDecimals(),1000);
+        }
+
         let manualExpanded=false,lastCount=0,selectedHistoryCustomerKey='',mobilePage='calculator';
         const HISTORY_KEY='bb_sales_support_calc_history_v1';
         const q=s=>document.querySelector(s);
