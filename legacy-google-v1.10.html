@@ -3322,7 +3322,50 @@
     saveCalcCurrentMemory();
   }
 
-  function openCalcQtyModal(product, price, hasSpecialPrice = false){
+  function focusCalcEntryNow(input){
+    if(!input) return;
+
+    /*
+     * iOS only raises the software keyboard when focus happens inside
+     * the same user gesture that opened the editor. Do not delay this
+     * focus with setTimeout/requestAnimationFrame.
+     */
+    try{
+      input.focus({preventScroll:true});
+    }catch(_){
+      try{ input.focus(); }catch(__){}
+    }
+
+    try{
+      input.select();
+    }catch(_){
+      try{
+        const length = String(input.value || "").length;
+        input.setSelectionRange(0, length);
+      }catch(__){}
+    }
+  }
+
+  function updateCalcQtyPricing(product, price, hasSpecialPrice){
+    if(
+      !pendingCalcProduct ||
+      !pendingCalcProduct.product ||
+      pendingCalcProduct.product.code !== product.code
+    ){
+      return;
+    }
+
+    pendingCalcProduct.price = num(price);
+    pendingCalcProduct.hasSpecialPrice = !!hasSpecialPrice;
+    pendingCalcProduct.pricingReady = true;
+
+    $("calcQtyProductMeta").textContent =
+      [product.code, product.unit, formatMoney(usdToDisplay(price), calcCurrency())]
+        .filter(Boolean)
+        .join(" · ");
+  }
+
+  function openCalcQtyModal(product, price, hasSpecialPrice = false, pricingReady = true){
     if(!product) return;
 
     const existing = calcLines.find(
@@ -3333,6 +3376,8 @@
       product:product,
       price:num(price),
       hasSpecialPrice:!!hasSpecialPrice,
+      pricingReady:pricingReady !== false,
+      pricingPromise:null,
       existingId:existing ? existing.id : ""
     };
 
@@ -3347,13 +3392,19 @@
       : "1";
 
     $("calcQtyConfirm").textContent = existing ? "Update Quantity" : "Next";
-    $("calcQtyStatus").textContent = "";
-    $("calcQtyModal").classList.remove("hidden");
+    $("calcQtyStatus").textContent = pricingReady === false
+      ? "Loading customer price..."
+      : "";
 
-    setTimeout(() => {
-      $("calcQtyInput").focus();
-      $("calcQtyInput").select();
-    }, 30);
+    const modal = $("calcQtyModal");
+    modal.classList.remove("hidden");
+
+    /*
+     * Force the newly opened modal into layout, then focus immediately.
+     * This keeps the original product tap as the active iOS user gesture.
+     */
+    void modal.offsetHeight;
+    focusCalcEntryNow($("calcQtyInput"));
   }
 
   function closeCalcQtyModal(){
@@ -3395,12 +3446,11 @@
       ? String(Math.round(displayPrice))
       : String(Number(displayPrice.toFixed(2)));
     $("calcPriceStatus").textContent = "";
-    $("calcPriceModal").classList.remove("hidden");
+    const modal = $("calcPriceModal");
+    modal.classList.remove("hidden");
 
-    setTimeout(() => {
-      $("calcPriceInput").focus();
-      $("calcPriceInput").select();
-    }, 30);
+    void modal.offsetHeight;
+    focusCalcEntryNow($("calcPriceInput"));
   }
 
   function closeCalcPriceModal(){
@@ -3461,12 +3511,30 @@
     );
   }
 
-  function confirmCalcQty(event){
+  async function confirmCalcQty(event){
     event.preventDefault();
 
     if(!pendingCalcProduct || !pendingCalcProduct.product){
       closeCalcQtyModal();
       return;
+    }
+
+    if(
+      pendingCalcProduct.pricingReady === false &&
+      pendingCalcProduct.pricingPromise
+    ){
+      $("calcQtyStatus").textContent = "Finishing customer price...";
+      $("calcQtyConfirm").disabled = true;
+
+      try{
+        await pendingCalcProduct.pricingPromise;
+      }finally{
+        $("calcQtyConfirm").disabled = false;
+      }
+
+      if(!pendingCalcProduct || !pendingCalcProduct.product){
+        return;
+      }
     }
 
     const qty = num($("calcQtyInput").value);
@@ -3509,25 +3577,69 @@
     finalizeCalcProduct(product, qty, price, false);
   }
 
-  async function selectCalculatorProduct(product){
+  function selectCalculatorProduct(product){
     if(!product) return;
 
-    // Keep the chosen product visible briefly while price is loading.
+    /*
+     * Open QTY immediately while we are still inside the user's product tap.
+     * This is required for iOS to raise the numeric keyboard automatically.
+     * Customer pricing can safely finish after the modal is already open.
+     */
     setProductPickerSelection("calc", product);
 
-    try{
-      const pricing = await resolveCalcProductPricing(product);
-      openCalcQtyModal(product, pricing.price, pricing.hasSpecialPrice);
-    }catch(error){
-      setProductPickerSelection("calc", null);
-      showStatus(
-        "calcStatus",
-        error && error.message
-          ? error.message
-          : "Could not load product price.",
-        true
-      );
+    const initialPrice = num(product.usdPrice);
+    openCalcQtyModal(product, initialPrice, false, false);
+
+    const pricingPromise = resolveCalcProductPricing(product)
+      .then(pricing => {
+        updateCalcQtyPricing(
+          product,
+          pricing.price,
+          pricing.hasSpecialPrice
+        );
+
+        if(
+          pendingCalcProduct &&
+          pendingCalcProduct.product &&
+          pendingCalcProduct.product.code === product.code
+        ){
+          $("calcQtyStatus").textContent = "";
+        }
+
+        return pricing;
+      })
+      .catch(error => {
+        if(
+          pendingCalcProduct &&
+          pendingCalcProduct.product &&
+          pendingCalcProduct.product.code === product.code
+        ){
+          /*
+           * Keep the salesman moving: standard product price remains usable
+           * when a special-price lookup fails.
+           */
+          updateCalcQtyPricing(product, initialPrice, false);
+          $("calcQtyStatus").textContent =
+            "Customer price unavailable • using standard price.";
+          $("calcQtyStatus").style.color = "#b7791f";
+        }
+
+        console.warn("Calculator customer price:", error);
+        return {
+          price:initialPrice,
+          hasSpecialPrice:false
+        };
+      });
+
+    if(
+      pendingCalcProduct &&
+      pendingCalcProduct.product &&
+      pendingCalcProduct.product.code === product.code
+    ){
+      pendingCalcProduct.pricingPromise = pricingPromise;
     }
+
+    return pricingPromise;
   }
 
   async function addCalcProduct(){
