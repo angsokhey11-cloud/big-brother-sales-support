@@ -139,6 +139,26 @@ html,body{margin:0;min-height:100%;background:#eef3f8;font-family:Arial,sans-ser
         '    void 0;\n  }\n\n  function openCalcPriceModal'
       );
 
+      /*
+       * New mobile product entry starts blank.
+       * Existing-line quantity edits still keep their saved quantity.
+       */
+      html=html.replace(
+        `    $("calcQtyInput").value = existing && existing.qty > 0
+      ? String(existing.qty)
+      : "1";`,
+        `    $("calcQtyInput").value = existing && existing.qty > 0
+      ? String(existing.qty)
+      : "";`
+      );
+
+      html=html.replace(
+        `    $("calcPriceInput").value = currency === "KHR"
+      ? String(Math.round(displayPrice))
+      : String(Number(displayPrice.toFixed(2)));`,
+        `    $("calcPriceInput").value = "";`
+      );
+
       const mobileStyle=`<style id="bb-mobile-calculator-v2">
         html,body{background:#eef4fa!important;overflow-x:hidden!important;touch-action:pan-x pan-y!important}
         body{padding:0!important}
