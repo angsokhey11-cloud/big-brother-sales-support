@@ -80,12 +80,56 @@ html,body{margin:0;min-height:100%;background:#eef3f8;font-family:Arial,sans-ser
 
       /*
        * Mobile focus policy:
-       * - Quantity auto-focuses immediately after the user selects a product
-       *   so the numeric keyboard opens without another tap.
-       * - Price/search/customer fields never auto-focus after transitions,
-       *   which keeps the app at the fixed scale/position after actions.
+       * - Quantity and Price auto-focus so the numeric keyboard opens without
+       *   another tap.
+       * - Focus never selects text and restores the page scroll immediately,
+       *   preventing iPhone/Android from panning the calculator to the field.
+       * - Search/customer fields still never auto-focus after actions.
        */
-      html=html.replaceAll('focusCalcEntryNow($("calcPriceInput"));','void 0;');
+      html=html.replace(
+        /function focusCalcEntryNow\(input\)\{[\s\S]*?\n  \}\n\n  function updateCalcQtyPricing/,
+        `function focusCalcEntryNow(input){
+    if(!input) return;
+
+    const scrollX = window.scrollX || window.pageXOffset || 0;
+    const scrollY = window.scrollY || window.pageYOffset || 0;
+    const scrolling = document.scrollingElement || document.documentElement;
+    const scrollLeft = scrolling ? scrolling.scrollLeft : 0;
+    const scrollTop = scrolling ? scrolling.scrollTop : 0;
+
+    try{
+      input.focus({preventScroll:true});
+    }catch(_){
+      try{ input.focus(); }catch(__){}
+    }
+
+    // Do NOT call select() on mobile. Selection handles can make Safari
+    // pan/zoom the visual viewport even when preventScroll is requested.
+    try{
+      if(typeof input.setSelectionRange === "function"){
+        const length = String(input.value || "").length;
+        input.setSelectionRange(length, length);
+      }
+    }catch(_){}
+
+    const restore = () => {
+      try{ window.scrollTo(scrollX, scrollY); }catch(_){}
+      try{
+        if(scrolling){
+          scrolling.scrollLeft = scrollLeft;
+          scrolling.scrollTop = scrollTop;
+        }
+      }catch(_){}
+    };
+
+    restore();
+    requestAnimationFrame(restore);
+    setTimeout(restore, 60);
+    setTimeout(restore, 180);
+  }
+
+  function updateCalcQtyPricing`
+      );
       html=html.replaceAll('$("calcProductSearch").focus();','void 0;');
       html=html.replaceAll('$("calcCustomerSearch").focus();','void 0;');
       html=html.replaceAll('$("calcQtyInput").focus();','void 0;');
