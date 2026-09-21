@@ -68,8 +68,30 @@ html,body{margin:0;min-height:100%;background:#eef3f8;font-family:Arial,sans-ser
     }
 
     if(mobileCalculator){
+      /*
+       * MOBILE APP VIEWPORT LOCK
+       * The calculator must never zoom or jump to an input after an action.
+       * Keep this mobile-only so desktop Sales Support remains untouched.
+       */
+      html=html.replace(
+        '<meta name="viewport" content="width=device-width,initial-scale=1">',
+        '<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">'
+      );
+
+      /* Remove every calculator-only programmatic focus jump. */
+      html=html.replaceAll('focusCalcEntryNow($("calcQtyInput"));','void 0;');
+      html=html.replaceAll('focusCalcEntryNow($("calcPriceInput"));','void 0;');
+      html=html.replaceAll('$("calcProductSearch").focus();','void 0;');
+      html=html.replaceAll('$("calcCustomerSearch").focus();','void 0;');
+      html=html.replaceAll('$("calcQtyInput").focus();','void 0;');
+      html=html.replaceAll('$("calcPriceInput").focus();','void 0;');
+      html=html.replace(
+        '    input.focus();\n  }\n\n  function openCalcPriceModal',
+        '    void 0;\n  }\n\n  function openCalcPriceModal'
+      );
+
       const mobileStyle=`<style id="bb-mobile-calculator-v2">
-        html,body{background:#eef4fa!important;overflow-x:hidden!important}
+        html,body{background:#eef4fa!important;overflow-x:hidden!important;touch-action:pan-x pan-y!important}
         body{padding:0!important}
         .app{width:100%!important;max-width:none!important;margin:0!important;padding:7px 8px 18px!important}
         .topbar,.tabs{display:none!important}
@@ -83,7 +105,7 @@ html,body{margin:0;min-height:100%;background:#eef3f8;font-family:Arial,sans-ser
         .calc-primary-grid>div:nth-child(3){grid-area:currency!important}
         .calc-primary-grid>div:nth-child(4){grid-area:rate!important}
         .calc-field-label{font-size:9px!important;line-height:1!important;margin-bottom:4px!important;letter-spacing:.15px!important}
-        .calc-control-card select,.calc-control-card input{min-height:40px!important;height:40px!important;padding:7px 9px!important;border-radius:9px!important;font-size:14px!important}
+        .calc-control-card select,.calc-control-card input{min-height:40px!important;height:40px!important;padding:7px 9px!important;border-radius:9px!important;font-size:16px!important}
         .customer-picker-icon{right:10px!important;font-size:13px!important}
         .calc-currency-wrap{min-height:40px!important;height:40px!important;padding:3px!important;gap:4px!important;border-radius:9px!important}
         .calc-currency-btn{min-height:32px!important;height:32px!important;padding:4px 6px!important;font-size:12px!important;border-radius:7px!important}
@@ -138,7 +160,7 @@ html,body{margin:0;min-height:100%;background:#eef3f8;font-family:Arial,sans-ser
         .calc-products-head h2{font-size:15px!important;margin:0!important}
         .calc-product-count{font-size:9px!important;margin-top:1px!important}
         .calc-product-search-row{margin-bottom:7px!important;gap:6px!important}
-        .calc-product-search-row .product-picker input{min-height:40px!important;height:40px!important;padding:7px 34px 7px 9px!important;font-size:14px!important;border-radius:9px!important}
+        .calc-product-search-row .product-picker input{min-height:40px!important;height:40px!important;padding:7px 34px 7px 9px!important;font-size:16px!important;border-radius:9px!important}
         .calc-product-search-row .btn{min-height:40px!important;padding:7px 10px!important;font-size:10px!important}
         .calc-product-empty{padding:18px 10px!important;min-height:84px!important;font-size:10px!important;line-height:1.35!important}
         .calc-product-list{gap:6px!important}
@@ -147,7 +169,7 @@ html,body{margin:0;min-height:100%;background:#eef3f8;font-family:Arial,sans-ser
         .calc-product-main strong{font-size:12px!important;line-height:1.15!important;white-space:nowrap!important;overflow:hidden!important;text-overflow:ellipsis!important}
         .calc-product-main small{font-size:9px!important;margin-top:2px!important}
         .calc-price-editor{grid-area:price!important;min-width:0!important}
-        .calc-price-editor input,.calc-price-input{min-height:34px!important;height:34px!important;max-width:105px!important;padding:5px 7px!important;font-size:12px!important;border-radius:7px!important}
+        .calc-price-editor input,.calc-price-input{min-height:34px!important;height:34px!important;max-width:105px!important;padding:5px 7px!important;font-size:16px!important;border-radius:7px!important}
         .calc-qty-stepper{grid-area:qty!important;justify-self:end!important}
         .calc-qty-stepper button{min-width:34px!important;height:34px!important;min-height:34px!important;padding:0 6px!important;font-size:12px!important}
         .calc-line-total{grid-area:total!important;min-width:0!important;text-align:right!important;font-size:12px!important}
@@ -160,7 +182,7 @@ html,body{margin:0;min-height:100%;background:#eef3f8;font-family:Arial,sans-ser
         .calc-discount-row{grid-template-columns:auto minmax(0,1fr)!important;gap:8px!important;align-items:center!important}
         .calc-discount-label{font-size:11px!important;white-space:nowrap!important}
         .calc-discount-input-wrap{grid-template-columns:auto minmax(0,1fr)!important;gap:5px!important}
-        .calc-discount-input-wrap input,.calc-discount-input-wrap select{min-height:36px!important;height:36px!important;font-size:12px!important;padding:5px 7px!important}
+        .calc-discount-input-wrap input,.calc-discount-input-wrap select{min-height:36px!important;height:36px!important;font-size:16px!important;padding:5px 7px!important}
         .calc-total-summary{padding:8px 10px!important;border-radius:10px!important;min-height:56px!important}
         .calc-total-summary small{font-size:9px!important}
         .calc-total-summary strong{font-size:22px!important}
@@ -169,6 +191,33 @@ html,body{margin:0;min-height:100%;background:#eef3f8;font-family:Arial,sans-ser
         #calcClearBtn{display:none!important}
         .calc-actions{grid-template-columns:1fr!important}
         #calcNewBtn{width:100%!important}
+
+        /* Fixed app-style Quantity / Price card — never auto-centered or moved. */
+        #calcQtyModal.qty-modal,
+        #calcPriceModal.qty-modal{
+          align-items:flex-start!important;
+          justify-content:center!important;
+          padding:25svh 10px 12px!important;
+          overflow:hidden!important;
+        }
+        #calcQtyModal .qty-dialog,
+        #calcPriceModal .qty-dialog{
+          width:min(84vw,320px)!important;
+          max-width:320px!important;
+          border-radius:13px!important;
+        }
+        #calcQtyModal .qty-dialog-head,
+        #calcPriceModal .qty-dialog-head{padding:11px 12px 7px!important}
+        #calcQtyModal .qty-dialog-meta,
+        #calcPriceModal .qty-dialog-meta{padding:0 12px 7px!important;margin-bottom:0!important}
+        #calcQtyModal .qty-dialog-body,
+        #calcPriceModal .qty-dialog-body{padding:0 12px 10px!important}
+        #calcQtyModal .qty-dialog-actions,
+        #calcPriceModal .qty-dialog-actions{padding:8px 12px 10px!important;gap:6px!important}
+        #calcQtyInput,
+        #calcPriceInput{font-size:18px!important;min-height:44px!important}
+        #calcQtyMinus,
+        #calcQtyPlus{min-height:42px!important;font-size:20px!important}
 
         @media(max-width:380px){
           .app{padding:6px 6px 16px!important}
@@ -186,6 +235,21 @@ html,body{margin:0;min-height:100%;background:#eef3f8;font-family:Arial,sans-ser
            keep Calculator decimal entry reliable for values such as 4.20,
            even when this mobile Calculator is opened outside the dashboard shell. */
         const isIOSCalc=()=>/iPhone|iPad|iPod/i.test(navigator.userAgent||'')||(navigator.platform==='MacIntel'&&Number(navigator.maxTouchPoints||0)>1);
+
+        /* App-style fixed scale: no pinch zoom and no double-tap zoom. */
+        try{
+          const viewport=document.querySelector('meta[name="viewport"]');
+          if(viewport) viewport.setAttribute('content','width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover');
+        }catch(_){}
+        document.addEventListener('gesturestart',event=>event.preventDefault(),{passive:false});
+        document.addEventListener('gesturechange',event=>event.preventDefault(),{passive:false});
+        document.addEventListener('gestureend',event=>event.preventDefault(),{passive:false});
+        let bbLastTouchEnd=0;
+        document.addEventListener('touchend',event=>{
+          const now=Date.now();
+          if(now-bbLastTouchEnd<=300) event.preventDefault();
+          bbLastTouchEnd=now;
+        },{passive:false});
         function patchIOSCalcDecimalInput(input){
           if(!isIOSCalc()||!input||input.dataset.bbCalcIosDecimal==='1')return;
           input.dataset.bbCalcIosDecimal='1';
