@@ -1444,6 +1444,11 @@
     color:#245fae;
   }
 
+  .calc-history-edit{
+    background:#e9f8ef;
+    color:#168253;
+  }
+
   .calc-history-delete{
     background:#fff0ef;
     color:#c0392b;
@@ -1930,6 +1935,7 @@
   let calcHistory = [];
   let calcMemoryReady = false;
   let calcMemorySuppressSave = false;
+  let calcEditingHistoryId = "";
   let calcSelectedCustomerKey = "";
   let calcSelectedProductCode = "";
   let pendingCalcProduct = null;
@@ -2862,6 +2868,12 @@
             <div class="calc-history-item-actions">
               <button
                 type="button"
+                class="calc-history-small-btn calc-history-edit"
+                data-calc-history-edit="${esc(entry.id)}"
+              >✏️ Edit History</button>
+
+              <button
+                type="button"
                 class="calc-history-small-btn calc-history-load"
                 data-calc-history-load="${esc(entry.id)}"
               >Load This Calculation</button>
@@ -2876,6 +2888,15 @@
         `;
       }).join("") +
       "</div>";
+
+    box.querySelectorAll("[data-calc-history-edit]")
+      .forEach(button => {
+        button.addEventListener("click", () => {
+          editCalculatorHistoryEntry(
+            button.dataset.calcHistoryEdit
+          );
+        });
+      });
 
     box.querySelectorAll("[data-calc-history-load]")
       .forEach(button => {
@@ -3009,6 +3030,99 @@
     saveCalcCurrentMemory();
   }
 
+  function syncCalcHistoryEditUi(){
+    const button = $("calcNewBtn");
+    if(!button) return;
+
+    button.textContent = calcEditingHistoryId
+      ? "💾 Save History Changes"
+      : "🧮 New Calculation";
+  }
+
+  function editCalculatorHistoryEntry(id){
+    const entry =
+      calcHistory.find(
+        item =>
+          clean(item.id) === clean(id)
+      );
+
+    if(!entry) return;
+
+    calcEditingHistoryId = clean(entry.id);
+    applyCalculatorMemoryState(entry);
+    calcMemoryReady = true;
+    saveCalcCurrentMemory();
+    syncCalcHistoryEditUi();
+
+    $("calcHistoryPanel").hidden = true;
+    $("calcHistoryToggleBtn").textContent =
+      "Show History";
+
+    showStatus(
+      "calcStatus",
+      "Editing saved history. Make your changes, then tap Save History Changes.",
+      false
+    );
+
+    $("calcProductSearch").focus();
+  }
+
+  function saveEditedCalculatorHistory(){
+    if(!calcEditingHistoryId) return false;
+
+    const index =
+      calcHistory.findIndex(
+        item =>
+          clean(item.id) === clean(calcEditingHistoryId)
+      );
+
+    if(index < 0){
+      calcEditingHistoryId = "";
+      syncCalcHistoryEditUi();
+      showStatus(
+        "calcStatus",
+        "The history item could not be found.",
+        true
+      );
+      return true;
+    }
+
+    if(!calcLines.length){
+      showStatus(
+        "calcStatus",
+        "Add at least one product before saving history changes.",
+        true
+      );
+      return true;
+    }
+
+    const original = calcHistory[index];
+    const current = calcCurrentMemoryState();
+
+    calcHistory[index] = {
+      ...original,
+      ...current,
+      id:original.id,
+      createdAt:original.createdAt,
+      updatedAt:Date.now()
+    };
+
+    saveCalcHistoryMemory();
+    renderCalcHistory();
+
+    calcEditingHistoryId = "";
+    syncCalcHistoryEditUi();
+    saveCalcCurrentMemory();
+
+    showStatus(
+      "calcStatus",
+      "Calculator history updated.",
+      false
+    );
+
+    return true;
+  }
+
   function loadCalculatorHistoryEntry(id){
     const entry =
       calcHistory.find(
@@ -3018,6 +3132,8 @@
 
     if(!entry) return;
 
+    calcEditingHistoryId = "";
+    syncCalcHistoryEditUi();
     applyCalculatorMemoryState(entry);
     calcMemoryReady = true;
     saveCalcCurrentMemory();
@@ -3028,7 +3144,7 @@
 
     showStatus(
       "calcStatus",
-      "Calculator history loaded.",
+      "Calculator history loaded as a new working copy.",
       false
     );
 
@@ -3036,6 +3152,11 @@
   }
 
   function deleteCalculatorHistoryEntry(id){
+    if(clean(calcEditingHistoryId) === clean(id)){
+      calcEditingHistoryId = "";
+      syncCalcHistoryEditUi();
+    }
+
     calcHistory =
       calcHistory.filter(
         item =>
@@ -3047,6 +3168,8 @@
   }
 
   function clearCalculatorHistory(){
+    calcEditingHistoryId = "";
+    syncCalcHistoryEditUi();
     calcHistory = [];
 
     try{
@@ -3829,12 +3952,16 @@
   }
 
   function newCalculation(){
+    if(saveEditedCalculatorHistory()) return;
+
     archiveCalculatorToHistory();
     resetCalculationLines();
     saveCalcCurrentMemory();
   }
 
   function clearCalculator(){
+    calcEditingHistoryId = "";
+    syncCalcHistoryEditUi();
     calcMemorySuppressSave = true;
 
     resetCalculationLines();
