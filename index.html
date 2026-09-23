@@ -89,6 +89,18 @@ html,body{margin:0;min-height:100%;background:#eef3f8;font-family:Arial,sans-ser
       html=html.replace('publicMode:true,','publicMode:false,');
 
       /*
+       * MOBILE CALCULATOR LOCATION DISPLAY
+       * Keep locationCode as the option value for all existing logic, but
+       * show only the friendly locationName inside the Calculator select.
+       * String.replace intentionally changes only the first occurrence,
+       * which is renderCalcLocationFilter(); Delivery Request stays unchanged.
+       */
+      html=html.replace(
+        '      option.textContent = location.locationCode + " — " + location.locationName;',
+        '      option.textContent = location.locationName || location.locationCode;'
+      );
+
+      /*
        * MOBILE CALCULATOR ACCOUNT SCOPE
        * Each signed-in user gets separate current-calculation/history memory.
        * This prevents Account B from projecting Account A's local history.
