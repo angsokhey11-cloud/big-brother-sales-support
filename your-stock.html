@@ -70,7 +70,14 @@ const BB_STOCK_ORDER=[
   {kind:'group',key:'CMP-220ml-GRP'}
 ];
 const BB_OPEN_STOCK_GROUPS=new Set();
-function bbQtyUnit(value,unit){return qty(value)+'/'+esc(unit||'unit')}
+function bbShortUnit(unit){
+  const raw=clean(unit);
+  const u=raw.toLowerCase();
+  if(u==='bottle'||u==='bottles')return 'bt';
+  if(u==='cup'||u==='cups')return 'cup';
+  return raw;
+}
+function bbQtyUnit(value,unit){return qty(value)+esc(bbShortUnit(unit))}
 function bbSumRows(rows,key){return rows.reduce((sum,row)=>sum+num(row?.[key]),0)}
 function bbGroupUnit(rows){
   const units=[...new Set(rows.map(x=>clean(x?.unit)).filter(Boolean))];
@@ -94,7 +101,7 @@ function renderMobileStaffStock(){
   let shown=0;
 
   $('itemTable').classList.remove('admin-table');
-  $('itemHead').innerHTML='<tr class="bb-mobile-stock-head"><th>Name</th><th class="num">Assign / Unit</th><th class="num">Sold / Unit</th><th class="num">Damage / Unit</th><th class="num">Current / Unit</th></tr>';
+  $('itemHead').innerHTML='<tr class="bb-mobile-stock-head"><th>Name</th><th class="num">Assign QTY</th><th class="num">Sold QTY</th><th class="num">Damage QTY</th><th class="num">Current QTY</th></tr>';
 
   for(const spec of BB_STOCK_ORDER){
     if(spec.kind==='group'){
