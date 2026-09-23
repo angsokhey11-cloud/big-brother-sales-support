@@ -49,6 +49,119 @@ const esc=v=>clean(v).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&
 const qty=v=>num(v).toLocaleString('en-US',{maximumFractionDigits:2});
 const money=v=>'$'+num(v).toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2});
 let session=null,data=null,loadingNow=false;
+const BB_MOBILE_STOCK_LIST=new URLSearchParams(location.search).get('mobileSkin')==='1';
+const BB_STOCK_GROUPS={
+  'KIR-2L-GRP':{name:'Kirisu Milk 2L',codes:['KIR3-2L','KIRB-2L']},
+  'KIR-830-GRP':{name:'Kirisu Milk 830ml',codes:['KIR0-830','KIR3-830']},
+  'KIR-135-GRP':{name:'Kirisu Yogurt',codes:['KIRP-Y135','KIRS-Y135','KIRV-Y135']},
+  'CMP-220ml-GRP':{name:'Champei Milk 220ml',codes:['CH-O220','CHM-220','CHP-220','CHS-220','CHT-220']}
+};
+const BB_STOCK_ORDER=[
+  {kind:'group',key:'KIR-2L-GRP'},
+  {kind:'group',key:'KIR-830-GRP'},
+  {kind:'single',code:'FF-2L',name:'Farm Fresh 2L'},
+  {kind:'single',code:'AF-2L',name:'Aus Fresh 2L'},
+  {kind:'single',code:'VP-2L',name:'VP Dalat Milk 2L'},
+  {kind:'single',code:'OM-2L',name:"O'More 2L"},
+  {kind:'single',code:'GF-190',name:'Greenfield Fullcream 1.90L'},
+  {kind:'single',code:'GF-1L',name:'Greenfield Fullcream 1L'},
+  {kind:'single',code:'GFJ-1L',name:'Greenfield Jersey 1L'},
+  {kind:'group',key:'KIR-135-GRP'},
+  {kind:'group',key:'CMP-220ml-GRP'}
+];
+const BB_OPEN_STOCK_GROUPS=new Set();
+function bbQtyUnit(value,unit){return qty(value)+'/'+esc(unit||'unit')}
+function bbSumRows(rows,key){return rows.reduce((sum,row)=>sum+num(row?.[key]),0)}
+function bbGroupUnit(rows){
+  const units=[...new Set(rows.map(x=>clean(x?.unit)).filter(Boolean))];
+  return units.length===1?units[0]:'unit';
+}
+function bbMobileStockRow(cls,name,row,unit,attrs=''){
+  return `<tr class="${cls}" ${attrs}>
+    <td>${name}</td>
+    <td class="num">${bbQtyUnit(row.assignedQty,unit)}</td>
+    <td class="num">${bbQtyUnit(row.soldQty,unit)}</td>
+    <td class="num">${bbQtyUnit(row.damagedQty,unit)}</td>
+    <td class="num"><strong>${bbQtyUnit(row.currentQty,unit)}</strong></td>
+  </tr>`;
+}
+function renderMobileStaffStock(){
+  const all=Array.isArray(data?.items)?data.items:[];
+  const q=clean($('searchBox').value).toLowerCase();
+  const byCode=new Map(all.map(x=>[clean(x.productCode),x]));
+  const used=new Set();
+  let html='';
+  let shown=0;
+
+  $('itemTable').classList.remove('admin-table');
+  $('itemHead').innerHTML='<tr class="bb-mobile-stock-head"><th>Name</th><th class="num">Assign / Unit</th><th class="num">Sold / Unit</th><th class="num">Damage / Unit</th><th class="num">Current / Unit</th></tr>';
+
+  for(const spec of BB_STOCK_ORDER){
+    if(spec.kind==='group'){
+      const group=BB_STOCK_GROUPS[spec.key];
+      const members=group.codes.map(code=>byCode.get(code)).filter(Boolean);
+      if(!members.length)continue;
+
+      const matches=!q
+        ||group.name.toLowerCase().includes(q)
+        ||members.some(x=>clean(x.productName).toLowerCase().includes(q)||clean(x.productCode).toLowerCase().includes(q));
+      if(!matches)continue;
+
+      members.forEach(x=>used.add(clean(x.productCode)));
+      const unit=bbGroupUnit(members);
+      const totals={
+        assignedQty:bbSumRows(members,'assignedQty'),
+        soldQty:bbSumRows(members,'soldQty'),
+        damagedQty:bbSumRows(members,'damagedQty'),
+        currentQty:bbSumRows(members,'currentQty')
+      };
+      const open=!!q||BB_OPEN_STOCK_GROUPS.has(spec.key);
+
+      html+=bbMobileStockRow(
+        'bb-group-row'+(open?' bb-open':''),
+        esc(group.name)+'<span class="bb-group-tag">GROUP</span>',
+        totals,
+        unit,
+        `data-bb-group="${esc(spec.key)}" role="button" tabindex="0" aria-expanded="${open?'true':'false'}"`
+      );
+
+      for(const x of members){
+        html+=bbMobileStockRow(
+          'bb-child-row',
+          esc(x.productName||x.productCode),
+          x,
+          x.unit,
+          `data-bb-parent="${esc(spec.key)}"${open?'':' hidden'}`
+        );
+      }
+      shown++;
+      continue;
+    }
+
+    const x=byCode.get(spec.code);
+    if(!x)continue;
+    const matches=!q
+      ||spec.name.toLowerCase().includes(q)
+      ||clean(x.productName).toLowerCase().includes(q)
+      ||clean(x.productCode).toLowerCase().includes(q);
+    if(!matches)continue;
+
+    used.add(spec.code);
+    html+=bbMobileStockRow('bb-single-row',esc(spec.name),x,x.unit);
+    shown++;
+  }
+
+  for(const x of all.filter(x=>!used.has(clean(x.productCode)))){
+    const name=clean(x.productName||x.productCode);
+    const code=clean(x.productCode);
+    if(q&&!name.toLowerCase().includes(q)&&!code.toLowerCase().includes(q))continue;
+    html+=bbMobileStockRow('bb-single-row',esc(name),x,x.unit);
+    shown++;
+  }
+
+  $('itemRows').innerHTML=html||'<tr class="bb-empty-row"><td colspan="5" class="empty">No current stock matches this view.</td></tr>';
+  $('itemCount').textContent=shown+' line'+(shown===1?'':'s');
+}
 function readSession(){try{return JSON.parse(localStorage.getItem(SESSION_KEY)||'null')}catch(_){return null}}
 function saveSession(v){session=v||null;try{if(!v){localStorage.removeItem(SESSION_KEY);return}if(!v.expires_at&&v.expires_in)v.expires_at=Math.floor(Date.now()/1000)+Number(v.expires_in);localStorage.setItem(SESSION_KEY,JSON.stringify(v))}catch(_){}}
 async function parse(r){const t=await r.text();let b={};try{b=t?JSON.parse(t):{}}catch(_){b={message:t}}if(!r.ok)throw new Error(b.message||b.error_description||b.error||('Request failed ('+r.status+')'));return b}
@@ -61,10 +174,50 @@ function generatedTime(v){if(!v)return'Now';const s=clean(v);const d=new Date(s.
 function card(label,value,sub){return `<div class="card kpi"><small>${esc(label)}</small><strong>${esc(value)}</strong><span>${esc(sub)}</span></div>`}
 function renderSummary(){const s=data?.summary||{};if(data?.isAdmin){$('summaryCards').innerHTML=card('Open Batches',Math.round(num(s.openBatchCount)).toLocaleString('en-US'),'Assigned to your Staff ID')+card('Current Qty',qty(s.currentQty),'Remaining physical stock')+card('Stock Value',money(s.stockValueUSD),'Purchased-cost value')+card('Products',Math.round(num(s.productCount)).toLocaleString('en-US'),Math.round(num(s.locationCount))+' location'+(Math.round(num(s.locationCount))===1?'':'s'));}else{$('summaryCards').innerHTML=card('Products',Math.round(num(s.productCount)).toLocaleString('en-US'),'Products currently in your care')+card('Current Qty',qty(s.currentQty),'Remaining stock responsibility')+card('Open Batches',Math.round(num(s.openBatchCount)).toLocaleString('en-US'),'Active stock responsibility')+card('Last Updated',generatedTime(data?.generatedAt),'Live stock data');}}
 function renderBatches(){const list=Array.isArray(data?.batches)?data.batches:[];$('batchRows').innerHTML=list.length?list.map(x=>`<tr><td class="batch">${esc(x.batchId)}</td><td>${esc(dateText(x.batchDate))}</td><td>${esc(x.locationName||x.locationCode)}</td><td class="num">${esc(qty(x.issuedQty))}</td><td class="num">${esc(qty(x.soldQty))}</td><td class="num">${esc(qty(x.backSaleQty))}</td><td class="num">${esc(qty(x.damagedQty))}</td><td class="num"><strong>${esc(qty(x.currentQty))}</strong></td><td class="num"><strong>${esc(money(x.stockValueUSD))}</strong></td><td><span class="pill">${esc(x.status||'Open')}</span></td></tr>`).join(''):'<tr><td colspan="10" class="empty">No open stock batch is currently assigned to this Staff ID.</td></tr>';}
-function renderItems(){const all=Array.isArray(data?.items)?data.items:[];const q=clean($('searchBox').value).toLowerCase();const list=!q?all:all.filter(x=>[x.productCode,x.productName].some(v=>clean(v).toLowerCase().includes(q)));$('itemCount').textContent=list.length+' item'+(list.length===1?'':'s');if(data?.isAdmin){$('itemTable').classList.add('admin-table');$('itemHead').innerHTML='<tr><th>Batch</th><th>Location</th><th>Product</th><th>Unit</th><th class="num">Assigned Qty</th><th class="num">Purchased Qty</th><th class="num">Zero Cost Qty</th><th class="num">Current Qty</th><th class="num">Avg Cost</th><th class="num">Stock Value</th><th>Last Activity</th></tr>';$('itemRows').innerHTML=list.length?list.map(x=>`<tr><td class="batch">${esc(x.batchId)}</td><td>${esc(x.locationName||x.locationCode)}</td><td><strong>${esc(x.productName||x.productCode)}</strong><div class="muted">${esc(x.productCode)}</div></td><td>${esc(x.unit||'-')}</td><td class="num">${esc(qty(x.assignedQty))}</td><td class="num">${esc(qty(x.purchasedQty))}</td><td class="num">${esc(qty(x.zeroCostQty))}</td><td class="num"><strong>${esc(qty(x.currentQty))}</strong></td><td class="num">${esc(money(x.averageCostUSD))}</td><td class="num"><strong>${esc(money(x.stockValueUSD))}</strong></td><td>${esc(dateTime(x.lastActivityAt))}</td></tr>`).join(''):'<tr><td colspan="11" class="empty">No current stock matches this view.</td></tr>';}else{$('itemTable').classList.remove('admin-table');$('itemHead').innerHTML='<tr><th>Product</th><th>Unit</th><th class="num">Assigned Qty</th><th class="num">Sold Qty</th><th class="num">Damage Qty</th><th class="num">Current Qty</th><th>Last Activity</th></tr>';$('itemRows').innerHTML=list.length?list.map(x=>`<tr><td><strong>${esc(x.productName||x.productCode)}</strong><div class="muted">${esc(x.productCode)}</div></td><td>${esc(x.unit||'-')}</td><td class="num">${esc(qty(x.assignedQty))}</td><td class="num">${esc(qty(x.soldQty))}</td><td class="num">${esc(qty(x.damagedQty))}</td><td class="num"><strong>${esc(qty(x.currentQty))}</strong></td><td>${esc(dateTime(x.lastActivityAt))}</td></tr>`).join(''):'<tr><td colspan="7" class="empty">No current stock is assigned to your Staff ID.</td></tr>';}}
+function renderItems(){
+  if(BB_MOBILE_STOCK_LIST&&!data?.isAdmin){
+    renderMobileStaffStock();
+    return;
+  }
+  const all=Array.isArray(data?.items)?data.items:[];
+  const q=clean($('searchBox').value).toLowerCase();
+  const list=!q?all:all.filter(x=>[x.productCode,x.productName].some(v=>clean(v).toLowerCase().includes(q)));
+  $('itemCount').textContent=list.length+' item'+(list.length===1?'':'s');
+  if(data?.isAdmin){
+    $('itemTable').classList.add('admin-table');
+    $('itemHead').innerHTML='<tr><th>Batch</th><th>Location</th><th>Product</th><th>Unit</th><th class="num">Assigned Qty</th><th class="num">Purchased Qty</th><th class="num">Zero Cost Qty</th><th class="num">Current Qty</th><th class="num">Avg Cost</th><th class="num">Stock Value</th><th>Last Activity</th></tr>';
+    $('itemRows').innerHTML=list.length?list.map(x=>`<tr><td class="batch">${esc(x.batchId)}</td><td>${esc(x.locationName||x.locationCode)}</td><td><strong>${esc(x.productName||x.productCode)}</strong><div class="muted">${esc(x.productCode)}</div></td><td>${esc(x.unit||'-')}</td><td class="num">${esc(qty(x.assignedQty))}</td><td class="num">${esc(qty(x.purchasedQty))}</td><td class="num">${esc(qty(x.zeroCostQty))}</td><td class="num"><strong>${esc(qty(x.currentQty))}</strong></td><td class="num">${esc(money(x.averageCostUSD))}</td><td class="num"><strong>${esc(money(x.stockValueUSD))}</strong></td><td>${esc(dateTime(x.lastActivityAt))}</td></tr>`).join(''):'<tr><td colspan="11" class="empty">No current stock matches this view.</td></tr>';
+  }else{
+    $('itemTable').classList.remove('admin-table');
+    $('itemHead').innerHTML='<tr><th>Product</th><th>Unit</th><th class="num">Assigned Qty</th><th class="num">Sold Qty</th><th class="num">Damage Qty</th><th class="num">Current Qty</th><th>Last Activity</th></tr>';
+    $('itemRows').innerHTML=list.length?list.map(x=>`<tr><td><strong>${esc(x.productName||x.productCode)}</strong><div class="muted">${esc(x.productCode)}</div></td><td>${esc(x.unit||'-')}</td><td class="num">${esc(qty(x.assignedQty))}</td><td class="num">${esc(qty(x.soldQty))}</td><td class="num">${esc(qty(x.damagedQty))}</td><td class="num"><strong>${esc(qty(x.currentQty))}</strong></td><td>${esc(dateTime(x.lastActivityAt))}</td></tr>`).join(''):'<tr><td colspan="7" class="empty">No current stock is assigned to your Staff ID.</td></tr>';
+  }
+}
 function render(){const st=data?.staff||{};$('profile').textContent='👤 '+(st.staffName||'Staff')+' · '+(st.staffId||'—')+(data?.isAdmin?' · Admin full detail':' · Your stock responsibility');$('adminBatchSection').hidden=!data?.isAdmin;$('salesPrivacyNote').hidden=!!data?.isAdmin;$('searchBox').placeholder=data?.isAdmin?'Search product…':'Search product…';if(data?.isAdmin)$('batchUpdated').textContent='Updated '+(data.generatedAt||'now');renderSummary();if(data?.isAdmin)renderBatches();renderItems();$('loading').hidden=true;$('content').hidden=false;}
 async function load(showLoader=true){if(loadingNow)return;loadingNow=true;const btn=$('refreshBtn');btn.disabled=true;$('error').hidden=true;if(showLoader&& !data)$('loading').hidden=false;try{const next=await rpc('bb_sales_support_your_stock');if(!next?.success)throw new Error('Could not load Your Stock.');data=next;render();}catch(e){console.error(e);if(!data){$('loading').hidden=true;$('content').hidden=true;$('error').textContent=e?.message||String(e);$('error').hidden=false;}}finally{btn.disabled=false;loadingNow=false;}}
-$('refreshBtn').onclick=()=>load(false);$('searchBox').oninput=renderItems;document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='visible')load(false)});setInterval(()=>{if(document.visibilityState==='visible')load(false)},10000);load(true);
+$('refreshBtn').onclick=()=>load(false);
+$('searchBox').oninput=renderItems;
+$('itemRows').addEventListener('click',e=>{
+  if(!BB_MOBILE_STOCK_LIST||data?.isAdmin)return;
+  const row=e.target.closest('tr[data-bb-group]');
+  if(!row)return;
+  const key=clean(row.dataset.bbGroup);
+  if(!key)return;
+  if(BB_OPEN_STOCK_GROUPS.has(key))BB_OPEN_STOCK_GROUPS.delete(key);
+  else BB_OPEN_STOCK_GROUPS.add(key);
+  renderItems();
+});
+$('itemRows').addEventListener('keydown',e=>{
+  if(!BB_MOBILE_STOCK_LIST||data?.isAdmin||(e.key!=='Enter'&&e.key!==' '))return;
+  const row=e.target.closest('tr[data-bb-group]');
+  if(!row)return;
+  e.preventDefault();
+  const key=clean(row.dataset.bbGroup);
+  if(BB_OPEN_STOCK_GROUPS.has(key))BB_OPEN_STOCK_GROUPS.delete(key);
+  else BB_OPEN_STOCK_GROUPS.add(key);
+  renderItems();
+});
+document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='visible')load(false)});setInterval(()=>{if(document.visibilityState==='visible')load(false)},10000);load(true);
 })();
 </script>
 </body>
