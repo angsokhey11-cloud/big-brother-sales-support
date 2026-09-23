@@ -14,14 +14,32 @@
   let session=null;
   let bootstrapCache=null;
   let bootstrapAt=0;
+  let bootstrapUserId='';
 
   function readSession(){
     try{return JSON.parse(localStorage.getItem(SESSION_KEY)||'null')}
     catch(_){return null}
   }
 
+  function sessionUserId(value){
+    return String(value?.user?.id||'').trim();
+  }
+
+  function resetBootstrapCache(nextUserId=''){
+    bootstrapCache=null;
+    bootstrapAt=0;
+    bootstrapUserId=String(nextUserId||'').trim();
+  }
+
   function saveSession(value){
+    const previousUserId=sessionUserId(session||readSession());
     session=value||null;
+    const nextUserId=sessionUserId(session);
+
+    if(previousUserId!==nextUserId){
+      resetBootstrapCache(nextUserId);
+    }
+
     try{
       if(!value){localStorage.removeItem(SESSION_KEY);return;}
       if(!value.expires_at&&value.expires_in){
@@ -63,8 +81,15 @@
   async function ensureSession(){
     session=readSession();
     if(!session?.access_token){
+      resetBootstrapCache('');
       throw new Error('Please sign in to BIG BROTHER first.');
     }
+
+    const currentUserId=sessionUserId(session);
+    if(bootstrapUserId!==currentUserId){
+      resetBootstrapCache(currentUserId);
+    }
+
     const now=Math.floor(Date.now()/1000);
     if(session.expires_at&&Number(session.expires_at)<now+30){
       await refreshSession();
@@ -88,12 +113,23 @@
   }
 
   async function bootstrap(force=false){
+    await ensureSession();
+
+    const currentUserId=sessionUserId(session);
     const now=Date.now();
-    if(!force&&bootstrapCache&&now-bootstrapAt<15000){
+
+    if(
+      !force &&
+      bootstrapCache &&
+      bootstrapUserId===currentUserId &&
+      now-bootstrapAt<15000
+    ){
       return bootstrapCache;
     }
+
     bootstrapCache=await rpc('bb_sales_support_bootstrap');
     bootstrapAt=now;
+    bootstrapUserId=currentUserId;
     return bootstrapCache;
   }
 
