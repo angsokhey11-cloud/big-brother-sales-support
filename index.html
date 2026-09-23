@@ -248,9 +248,16 @@ html,body{margin:0;min-height:100%;background:#eef3f8;font-family:Arial,sans-ser
         .calc-products-head{margin-bottom:7px!important;align-items:center!important}
         .calc-products-head h2{font-size:15px!important;margin:0!important}
         .calc-product-count{font-size:9px!important;margin-top:1px!important}
-        .calc-product-search-row{margin-bottom:7px!important;gap:6px!important}
-        .calc-product-search-row .product-picker input{min-height:40px!important;height:40px!important;padding:7px 34px 7px 9px!important;font-size:16px!important;border-radius:9px!important}
-        .calc-product-search-row .btn{min-height:40px!important;padding:7px 10px!important;font-size:10px!important}
+        .calc-product-search-row{display:none!important}
+        #bbCalcQuickWrap{margin:0 0 8px!important;border:1px solid #dbe5ef!important;border-radius:10px!important;background:#fff!important;overflow:hidden!important}
+        .bb-calc-quick-scope{display:flex!important;align-items:center!important;justify-content:space-between!important;gap:8px!important;min-height:30px!important;padding:6px 9px!important;background:#f5f8fc!important;border-bottom:1px solid #e3eaf2!important;color:#61778e!important;font-size:8px!important;font-weight:900!important}
+        .bb-calc-quick-scope strong{color:#173f77!important;font-size:9px!important}
+        #bbCalcQuickProducts{display:block!important}
+        .bb-calc-product-choice{display:flex!important;align-items:center!important;justify-content:space-between!important;gap:8px!important;width:100%!important;min-height:39px!important;padding:8px 10px!important;border:0!important;border-bottom:1px solid #e8edf3!important;background:#fff!important;color:#173f77!important;text-align:left!important;font-size:10.5px!important;font-weight:900!important}
+        .bb-calc-product-choice:last-child{border-bottom:0!important}
+        .bb-calc-product-choice:active{background:#eaf3ff!important}
+        .bb-calc-product-choice span{min-width:0!important;white-space:nowrap!important;overflow:hidden!important;text-overflow:ellipsis!important}
+        .bb-calc-quick-empty{padding:18px 10px!important;color:#71869c!important;text-align:center!important;font-size:10px!important;font-weight:800!important;line-height:1.35!important}
         .calc-product-empty{padding:18px 10px!important;min-height:84px!important;font-size:10px!important;line-height:1.35!important}
         .calc-product-list{gap:6px!important}
         .calc-product-row{display:grid!important;grid-template-columns:minmax(0,1fr) auto auto!important;grid-template-areas:'main total delete' 'price qty qty'!important;gap:5px 7px!important;padding:8px!important;border-radius:10px!important;align-items:center!important}
@@ -376,6 +383,168 @@ html,body{margin:0;min-height:100%;background:#eef3f8;font-family:Arial,sans-ser
         const q=s=>document.querySelector(s);
         const clean=v=>String(v==null?'':v).trim();
         const num=v=>{const n=Number(v);return Number.isFinite(n)?n:0;};
+
+        const BB_CALC_PRODUCT_ORDER=[
+          'KIR3-2L','KIRB-2L','KIR0-830','KIR3-830',
+          'FF-2L','AF-2L','VP-2L','OM-2L',
+          'GF-190','GF-1L','GFJ-1L',
+          'KIRP-Y135','KIRS-Y135','KIRV-Y135',
+          'CH-O220','CHM-220','CHP-220','CHS-220','CHT-220'
+        ];
+        const BB_CALC_PRODUCT_RANK=new Map(
+          BB_CALC_PRODUCT_ORDER.map((code,index)=>[code,index])
+        );
+        let bbCalcQuickProducts=[];
+        let bbCalcQuickScope={openBatchCount:0,items:[]};
+        let bbCalcQuickReady=false;
+        let bbCalcQuickLoading=false;
+
+        function bbCalcCode(product){
+          return clean(product?.code||product?.productCode).toUpperCase();
+        }
+        function bbCalcName(product){
+          return clean(product?.name||product?.productName)||bbCalcCode(product)||'Product';
+        }
+        function bbCalcProductCompare(a,b){
+          const aCode=bbCalcCode(a),bCode=bbCalcCode(b);
+          const aRank=BB_CALC_PRODUCT_RANK.has(aCode)?BB_CALC_PRODUCT_RANK.get(aCode):9999;
+          const bRank=BB_CALC_PRODUCT_RANK.has(bCode)?BB_CALC_PRODUCT_RANK.get(bCode):9999;
+          if(aRank!==bRank)return aRank-bRank;
+          return bbCalcName(a).localeCompare(bbCalcName(b),undefined,{sensitivity:'base'});
+        }
+        function bbCalcQuickRows(){
+          let rows=bbCalcQuickProducts.slice();
+          const openCount=Math.max(0,num(bbCalcQuickScope?.openBatchCount));
+          if(openCount>0){
+            const allowed=new Set(
+              (Array.isArray(bbCalcQuickScope?.items)?bbCalcQuickScope.items:[])
+                .map(item=>bbCalcCode(item))
+                .filter(Boolean)
+            );
+            rows=rows.filter(product=>allowed.has(bbCalcCode(product)));
+          }
+          return rows.sort(bbCalcProductCompare);
+        }
+        function renderCalcQuickProducts(){
+          const host=q('#bbCalcQuickProducts');
+          const label=q('#bbCalcQuickScopeLabel');
+          const meta=q('#bbCalcQuickScopeMeta');
+          if(!host)return;
+
+          if(!bbCalcQuickReady){
+            host.innerHTML='<div class="bb-calc-quick-empty">Loading products…</div>';
+            if(label)label.textContent='Products';
+            if(meta)meta.textContent='';
+            return;
+          }
+
+          const rows=bbCalcQuickRows();
+          const openCount=Math.max(0,num(bbCalcQuickScope?.openBatchCount));
+
+          if(label)label.textContent=openCount>0?'Open Batch Products':'All Products';
+          if(meta)meta.textContent=openCount>0
+            ? rows.length+' available'
+            : rows.length+' products';
+
+          host.textContent='';
+
+          if(!rows.length){
+            const empty=document.createElement('div');
+            empty.className='bb-calc-quick-empty';
+            empty.textContent=openCount>0
+              ? 'No remaining products are available in your current open batch.'
+              : 'No products are available.';
+            host.appendChild(empty);
+            return;
+          }
+
+          rows.forEach(product=>{
+            const button=document.createElement('button');
+            button.type='button';
+            button.className='bb-calc-product-choice';
+            button.dataset.bbCalcProductCode=bbCalcCode(product);
+
+            const name=document.createElement('span');
+            name.textContent=bbCalcName(product);
+            button.appendChild(name);
+
+            button.addEventListener('click',()=>{
+              const code=bbCalcCode(product);
+              const input=q('#calcProductSearch');
+              const suggestions=q('#calcProductSuggestions');
+              if(!input||!suggestions)return;
+
+              input.value=bbCalcName(product);
+              input.dispatchEvent(new Event('input',{bubbles:true}));
+
+              const clickMatch=()=>{
+                const match=Array.from(
+                  suggestions.querySelectorAll('.product-suggestion')
+                ).find(node=>clean(node.dataset.code).toUpperCase()===code);
+
+                if(match){
+                  match.click();
+                  return true;
+                }
+                return false;
+              };
+
+              if(!clickMatch()){
+                input.value=code;
+                input.dispatchEvent(new Event('input',{bubbles:true}));
+                requestAnimationFrame(clickMatch);
+              }
+            });
+
+            host.appendChild(button);
+          });
+        }
+        async function loadCalcQuickProducts(force=false){
+          if(bbCalcQuickLoading)return;
+          if(bbCalcQuickReady&&!force){
+            renderCalcQuickProducts();
+            return;
+          }
+
+          bbCalcQuickLoading=true;
+          if(!bbCalcQuickReady)renderCalcQuickProducts();
+
+          try{
+            const adapter=window.BBSalesSupportAdapter;
+            if(!adapter?.bootstrap||!adapter?.rpc){
+              throw new Error('Sales Support data is not ready.');
+            }
+
+            const [bootstrap,scope]=await Promise.all([
+              adapter.bootstrap(!!force),
+              adapter.rpc('bb_sales_support_calculator_batch_scope')
+            ]);
+
+            bbCalcQuickProducts=Array.isArray(bootstrap?.products)
+              ? bootstrap.products.slice()
+              : [];
+
+            bbCalcQuickScope=scope&&scope.success
+              ? scope
+              : {openBatchCount:0,items:[]};
+
+            bbCalcQuickReady=true;
+          }catch(error){
+            console.warn('Calculator product list:',error);
+            try{
+              const bootstrap=await window.BBSalesSupportAdapter?.bootstrap?.();
+              bbCalcQuickProducts=Array.isArray(bootstrap?.products)
+                ? bootstrap.products.slice()
+                : [];
+            }catch(_){}
+            bbCalcQuickScope={openBatchCount:0,items:[]};
+            bbCalcQuickReady=true;
+          }finally{
+            bbCalcQuickLoading=false;
+            renderCalcQuickProducts();
+          }
+        }
+
         function selectedText(sel){if(!sel)return'';const o=sel.options&&sel.selectedIndex>=0?sel.options[sel.selectedIndex]:null;return clean(o?o.textContent:sel.value);}
         function currency(){const s=q('#calcCurrency');return s&&s.value==='KHR'?'KHR':'USD';}
         function historyEntries(){try{const x=JSON.parse(localStorage.getItem(HISTORY_KEY)||'[]');return Array.isArray(x)?x:[];}catch(_){return[];}}
@@ -470,6 +639,17 @@ html,body{margin:0;min-height:100%;background:#eef3f8;font-family:Arial,sans-ser
           if(!bar){bar=document.createElement('div');bar.id='bbCalcCompactBar';bar.innerHTML='<div class="bb-calc-summary-main"><strong class="bb-calc-summary-customer">Customer</strong><span class="bb-calc-summary-meta">—</span></div><button type="button" class="bb-calc-edit">✎ Edit</button>';shell.insertBefore(bar,card);bar.querySelector('.bb-calc-edit').addEventListener('click',()=>{manualExpanded=true;sync();});}
           let done=q('#bbCalcDone');
           if(!done){done=document.createElement('button');done.type='button';done.id='bbCalcDone';done.textContent='Done · Back to Products';card.appendChild(done);done.addEventListener('click',()=>{manualExpanded=false;sync();q('#calcProductSearch')?.focus();});}
+          let quick=q('#bbCalcQuickWrap');
+          if(!quick){
+            const lines=q('#calcLines');
+            quick=document.createElement('div');
+            quick.id='bbCalcQuickWrap';
+            quick.innerHTML='<div class="bb-calc-quick-scope"><strong id="bbCalcQuickScopeLabel">Products</strong><span id="bbCalcQuickScopeMeta"></span></div><div id="bbCalcQuickProducts"><div class="bb-calc-quick-empty">Loading products…</div></div>';
+            if(lines)lines.insertAdjacentElement('beforebegin',quick);
+          }
+          renderCalcQuickProducts();
+          void loadCalcQuickProducts();
+
           let preview=q('#bbCalcPreviewLast');
           if(!preview){
             preview=document.createElement('button');preview.type='button';preview.id='bbCalcPreviewLast';preview.textContent='Preview Last Transaction';preview.hidden=true;
@@ -573,7 +753,10 @@ html,body{margin:0;min-height:100%;background:#eef3f8;font-family:Arial,sans-ser
             });
           }
         }
-        function boot(){if(!ensureUi()){setTimeout(boot,80);return;}observe();sync();setTimeout(sync,250);setTimeout(sync,800);}
+        function boot(){if(!ensureUi()){setTimeout(boot,80);return;}observe();sync();void loadCalcQuickProducts();setTimeout(sync,250);setTimeout(sync,800);}
+        document.addEventListener('visibilitychange',()=>{
+          if(document.visibilityState==='visible')void loadCalcQuickProducts(true);
+        });
         if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',boot,{once:true});else boot();
       })();</scr`+`ipt>`;
 
