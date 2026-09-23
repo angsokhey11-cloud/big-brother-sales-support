@@ -252,21 +252,41 @@ html,body{margin:0;min-height:100%;background:#eef3f8;font-family:Arial,sans-ser
         #bbCalcQuickWrap{margin:0 0 8px!important}
         .bb-calc-quick-scope{display:flex!important;align-items:center!important;justify-content:space-between!important;gap:8px!important;margin-bottom:5px!important;color:#61778e!important;font-size:8px!important;font-weight:900!important}
         .bb-calc-quick-scope strong{color:#173f77!important;font-size:9px!important}
-        #bbCalcProductSelect{width:100%!important;min-height:42px!important;height:42px!important;padding:7px 34px 7px 10px!important;border:1px solid #c9d7e5!important;border-radius:9px!important;background:#fff!important;color:#173f77!important;font-size:13px!important;font-weight:800!important;outline:none!important}
-        #bbCalcProductSelect:focus{border-color:#78a9e6!important;box-shadow:0 0 0 2px rgba(23,104,213,.10)!important}
-        #bbCalcProductSelect:disabled{background:#f4f7fa!important;color:#8a9bad!important}
-        .calc-product-empty{padding:18px 10px!important;min-height:84px!important;font-size:10px!important;line-height:1.35!important}
-        .calc-product-list{gap:6px!important}
-        .calc-product-row{display:grid!important;grid-template-columns:minmax(0,1fr) auto auto!important;grid-template-areas:'main total delete' 'price qty qty'!important;gap:5px 7px!important;padding:8px!important;border-radius:10px!important;align-items:center!important}
+        #bbCalcProductTrigger{display:flex!important;align-items:center!important;justify-content:space-between!important;width:100%!important;min-height:42px!important;padding:8px 10px!important;border:1px solid #c9d7e5!important;border-radius:9px!important;background:#fff!important;color:#173f77!important;font-size:13px!important;font-weight:900!important;text-align:left!important}
+        #bbCalcProductTrigger::after{content:'▾';color:#68809a;font-size:12px}
+        #bbCalcProductTrigger:disabled{background:#f4f7fa!important;color:#8a9bad!important}
+        #bbCalcProductModal{position:fixed!important;inset:0!important;z-index:100080!important;display:flex!important;align-items:center!important;justify-content:center!important;padding:16px!important;background:rgba(17,37,61,.50)!important}
+        #bbCalcProductModal[hidden]{display:none!important}
+        .bb-calc-product-sheet{width:min(100%,520px)!important;max-height:78vh!important;display:flex!important;flex-direction:column!important;background:#fff!important;border-radius:18px!important;overflow:hidden!important;box-shadow:0 22px 55px rgba(10,30,55,.30)!important}
+        .bb-calc-product-sheet-head{display:flex!important;align-items:center!important;justify-content:space-between!important;gap:10px!important;padding:14px 16px!important;border-bottom:1px solid #e4eaf1!important}
+        .bb-calc-product-sheet-head strong{color:#173f77!important;font-size:16px!important}
+        .bb-calc-product-sheet-close{width:38px!important;height:38px!important;border:0!important;border-radius:10px!important;background:#edf3f9!important;color:#315776!important;font-size:18px!important;font-weight:900!important}
+        .bb-calc-product-sheet-meta{padding:7px 16px!important;background:#f6f9fc!important;border-bottom:1px solid #e5ebf2!important;color:#68809a!important;font-size:8px!important;font-weight:900!important}
+        #bbCalcProductSheetRows{overflow:auto!important;-webkit-overflow-scrolling:touch!important;padding:0 16px 10px!important}
+        .bb-calc-product-sheet-row{display:grid!important;grid-template-columns:minmax(0,1fr) auto!important;gap:8px!important;align-items:center!important;width:100%!important;min-height:53px!important;padding:8px 4px!important;border:0!important;border-bottom:1px solid #d8e1ea!important;background:#fff!important;text-align:left!important}
+        .bb-calc-product-sheet-row strong{display:block!important;color:#173f77!important;font-size:11px!important;line-height:1.2!important}
+        .bb-calc-product-sheet-row small{display:block!important;margin-top:3px!important;color:#7b8da0!important;font-size:7.5px!important;font-weight:800!important}
+        .bb-calc-product-sheet-stock{color:#2f628f!important;font-size:8px!important;font-weight:900!important;white-space:nowrap!important}
+        .bb-calc-product-sheet-empty{padding:24px 10px!important;text-align:center!important;color:#71869c!important;font-size:10px!important;font-weight:800!important}
+
+        #bbCalcLineHeader{display:grid!important;grid-template-columns:minmax(0,1fr) 54px 68px 72px!important;gap:4px!important;align-items:center!important;min-height:28px!important;padding:0 7px!important;background:#f5f8fc!important;border:1px solid #dfe7f0!important;border-bottom:0!important;border-radius:9px 9px 0 0!important;color:#677b91!important;font-size:6.5px!important;font-weight:900!important;text-transform:uppercase!important}
+        #bbCalcLineHeader[hidden]{display:none!important}
+        #bbCalcLineHeader span:not(:first-child){text-align:center!important}
+        .calc-product-empty{padding:18px 10px!important;min-height:72px!important;font-size:10px!important;line-height:1.35!important}
+        .calc-product-list{display:block!important;gap:0!important;border:1px solid #dfe7f0!important;border-radius:0 0 9px 9px!important;overflow:hidden!important}
+        .calc-product-row{position:relative!important;display:grid!important;grid-template-columns:minmax(0,1fr) 54px 68px 72px!important;grid-template-areas:'main qty price total'!important;gap:4px!important;align-items:center!important;min-height:43px!important;padding:5px 7px!important;margin:0!important;border:0!important;border-bottom:1px solid #e8edf3!important;border-radius:0!important;background:#fff!important;box-shadow:none!important}
+        .calc-product-row:last-child{border-bottom:0!important}
         .calc-product-main{grid-area:main!important;min-width:0!important}
-        .calc-product-main strong{font-size:12px!important;line-height:1.15!important;white-space:nowrap!important;overflow:hidden!important;text-overflow:ellipsis!important}
-        .calc-product-main small{font-size:9px!important;margin-top:2px!important}
+        .calc-product-main strong{display:block!important;font-size:9.5px!important;line-height:1.2!important;white-space:nowrap!important;overflow:hidden!important;text-overflow:ellipsis!important;color:#173f77!important}
+        .calc-product-main small{display:none!important}
+        .calc-qty-stepper{grid-area:qty!important;display:block!important;justify-self:stretch!important}
+        .calc-qty-stepper .calc-qty-minus,.calc-qty-stepper .calc-qty-plus{display:none!important}
+        .calc-qty-stepper .calc-qty-value{display:block!important;width:100%!important;min-width:0!important;height:auto!important;min-height:28px!important;padding:2px!important;border:0!important;background:transparent!important;color:#173f77!important;font-size:9.5px!important;font-weight:900!important;text-align:center!important}
         .calc-price-editor{grid-area:price!important;min-width:0!important}
-        .calc-price-editor input,.calc-price-input{min-height:34px!important;height:34px!important;max-width:105px!important;padding:5px 7px!important;font-size:16px!important;border-radius:7px!important}
-        .calc-qty-stepper{grid-area:qty!important;justify-self:end!important}
-        .calc-qty-stepper button{min-width:34px!important;height:34px!important;min-height:34px!important;padding:0 6px!important;font-size:12px!important}
-        .calc-line-total{grid-area:total!important;min-width:0!important;text-align:right!important;font-size:12px!important}
-        .calc-delete-btn{grid-area:delete!important;justify-self:end!important;width:34px!important;height:34px!important;min-height:34px!important;padding:0!important;font-size:13px!important}
+        .calc-price-editor small{display:none!important}
+        .calc-price-editor input,.calc-price-input{width:100%!important;max-width:none!important;min-width:0!important;min-height:28px!important;height:28px!important;padding:2px 1px!important;border:0!important;background:transparent!important;color:#1768d5!important;font-size:9.5px!important;font-weight:900!important;text-align:center!important;border-radius:0!important;box-shadow:none!important}
+        .calc-line-total{grid-area:total!important;min-width:0!important;text-align:right!important;color:#173f77!important;font-size:9px!important;font-weight:900!important;white-space:nowrap!important;overflow:hidden!important;text-overflow:ellipsis!important}
+        .calc-delete-btn{display:none!important}
 
         .calc-total-card{padding:8px 9px!important}
         .calc-total-layout{grid-template-columns:1fr!important;gap:6px!important}
@@ -316,7 +336,7 @@ html,body{margin:0;min-height:100%;background:#eef3f8;font-family:Arial,sans-ser
           .app{padding:6px 6px 16px!important}
           .calc-primary-grid{gap:6px!important}
           .calc-control-card,.calc-products-card,.calc-total-card,.calc-history-card{padding:8px!important}
-          .calc-product-row{grid-template-columns:minmax(0,1fr) auto!important;grid-template-areas:'main delete' 'price total' 'qty qty'!important}
+          #bbCalcLineHeader,.calc-product-row{grid-template-columns:minmax(0,1fr) 48px 62px 66px!important}
           .calc-line-total{text-align:right!important}
         }
       </style>`;
@@ -450,17 +470,90 @@ html,body{margin:0;min-height:100%;background:#eef3f8;font-family:Arial,sans-ser
           }
         }
 
-        function renderCalcQuickProducts(){
-          const select=q('#bbCalcProductSelect');
-          const label=q('#bbCalcQuickScopeLabel');
-          const meta=q('#bbCalcQuickScopeMeta');
-          if(!select)return;
+        function shortCalcUnit(unit){
+          const value=clean(unit).toLowerCase();
+          if(value==='bottle'||value==='bottles')return 'bt';
+          if(value==='cup'||value==='cups')return 'cup';
+          return clean(unit);
+        }
 
-          const previous=clean(select.value);
+        function closeCalcProductSheet(){
+          const modal=q('#bbCalcProductModal');
+          if(modal)modal.hidden=true;
+        }
+
+        function renderCalcProductSheet(){
+          const rowsBox=q('#bbCalcProductSheetRows');
+          const sheetMeta=q('#bbCalcProductSheetMeta');
+          if(!rowsBox)return;
 
           if(!bbCalcQuickReady){
-            select.innerHTML='<option value="">Loading products…</option>';
-            select.disabled=true;
+            rowsBox.innerHTML='<div class="bb-calc-product-sheet-empty">Loading products…</div>';
+            if(sheetMeta)sheetMeta.textContent='Loading';
+            return;
+          }
+
+          const rows=bbCalcQuickRows();
+          const openCount=Math.max(0,num(bbCalcQuickScope?.openBatchCount));
+          const currentByCode=new Map(
+            (Array.isArray(bbCalcQuickScope?.items)?bbCalcQuickScope.items:[])
+              .map(item=>[bbCalcCode(item),num(item?.currentQty)])
+          );
+
+          if(sheetMeta){
+            sheetMeta.textContent=openCount>0
+              ? 'Open Batch Products · '+rows.length+' available'
+              : 'All Products · '+rows.length+' products';
+          }
+
+          if(!rows.length){
+            rowsBox.innerHTML='<div class="bb-calc-product-sheet-empty">'+
+              (openCount>0
+                ? 'No remaining products are available in your current open batch.'
+                : 'No products are available.')+
+              '</div>';
+            return;
+          }
+
+          rowsBox.innerHTML=rows.map(product=>{
+            const code=bbCalcCode(product);
+            const unit=clean(product?.unit);
+            const current=currentByCode.get(code);
+            return '<button type="button" class="bb-calc-product-sheet-row" data-bb-calc-code="'+code+'">'+
+              '<span><strong>'+bbCalcName(product)+'</strong>'+
+              '<small>'+code+(unit?' · '+unit:'')+'</small></span>'+
+              (openCount>0
+                ? '<span class="bb-calc-product-sheet-stock">Current '+num(current).toLocaleString('en-US')+'</span>'
+                : '')+
+              '</button>';
+          }).join('');
+
+          rowsBox.querySelectorAll('[data-bb-calc-code]').forEach(button=>{
+            button.addEventListener('click',()=>{
+              const code=clean(button.dataset.bbCalcCode).toUpperCase();
+              const product=bbCalcQuickProducts.find(item=>bbCalcCode(item)===code);
+              closeCalcProductSheet();
+              if(product)openCalcProductFromDropdown(product);
+            });
+          });
+        }
+
+        function openCalcProductSheet(){
+          const modal=q('#bbCalcProductModal');
+          if(!modal)return;
+          renderCalcProductSheet();
+          modal.hidden=false;
+        }
+
+        function renderCalcQuickProducts(){
+          const trigger=q('#bbCalcProductTrigger');
+          const label=q('#bbCalcQuickScopeLabel');
+          const meta=q('#bbCalcQuickScopeMeta');
+          if(!trigger)return;
+
+          if(!bbCalcQuickReady){
+            trigger.textContent='Loading products…';
+            trigger.disabled=true;
             if(label)label.textContent='Select Product';
             if(meta)meta.textContent='';
             return;
@@ -469,22 +562,15 @@ html,body{margin:0;min-height:100%;background:#eef3f8;font-family:Arial,sans-ser
           const rows=bbCalcQuickRows();
           const openCount=Math.max(0,num(bbCalcQuickScope?.openBatchCount));
 
+          trigger.textContent='Select Product';
+          trigger.disabled=rows.length===0;
+
           if(label)label.textContent=openCount>0?'Open Batch Products':'Select Product';
           if(meta)meta.textContent=openCount>0
             ? rows.length+' available'
             : rows.length+' products';
 
-          select.innerHTML='<option value="">Select Product…</option>'+
-            rows.map(product=>
-              '<option value="'+bbCalcCode(product)+'">'+bbCalcName(product)+'</option>'
-            ).join('');
-
-          select.disabled=rows.length===0;
-          if(previous&&rows.some(product=>bbCalcCode(product)===previous)){
-            select.value=previous;
-          }else{
-            select.value='';
-          }
+          renderCalcProductSheet();
         }
 
         async function loadCalcQuickProducts(force=false){
@@ -626,24 +712,43 @@ html,body{margin:0;min-height:100%;background:#eef3f8;font-family:Arial,sans-ser
           let bar=q('#bbCalcCompactBar');
           if(!bar){bar=document.createElement('div');bar.id='bbCalcCompactBar';bar.innerHTML='<div class="bb-calc-summary-main"><strong class="bb-calc-summary-customer">Customer</strong><span class="bb-calc-summary-meta">—</span></div><button type="button" class="bb-calc-edit">✎ Edit</button>';shell.insertBefore(bar,card);bar.querySelector('.bb-calc-edit').addEventListener('click',()=>{manualExpanded=true;sync();});}
           let done=q('#bbCalcDone');
-          if(!done){done=document.createElement('button');done.type='button';done.id='bbCalcDone';done.textContent='Done · Back to Products';card.appendChild(done);done.addEventListener('click',()=>{manualExpanded=false;sync();q('#bbCalcProductSelect')?.focus();});}
+          if(!done){done=document.createElement('button');done.type='button';done.id='bbCalcDone';done.textContent='Done · Back to Products';card.appendChild(done);done.addEventListener('click',()=>{manualExpanded=false;sync();q('#bbCalcProductTrigger')?.focus();});}
+
           let quick=q('#bbCalcQuickWrap');
           if(!quick){
             const lines=q('#calcLines');
             quick=document.createElement('div');
             quick.id='bbCalcQuickWrap';
-            quick.innerHTML='<div class="bb-calc-quick-scope"><strong id="bbCalcQuickScopeLabel">Select Product</strong><span id="bbCalcQuickScopeMeta"></span></div><select id="bbCalcProductSelect" aria-label="Select Product"><option value="">Loading products…</option></select>';
+            quick.innerHTML='<div class="bb-calc-quick-scope"><strong id="bbCalcQuickScopeLabel">Select Product</strong><span id="bbCalcQuickScopeMeta"></span></div><button type="button" id="bbCalcProductTrigger">Loading products…</button>';
             if(lines)lines.insertAdjacentElement('beforebegin',quick);
-
-            const select=quick.querySelector('#bbCalcProductSelect');
-            select.addEventListener('change',()=>{
-              const code=clean(select.value).toUpperCase();
-              if(!code)return;
-              const product=bbCalcQuickProducts.find(item=>bbCalcCode(item)===code);
-              select.value='';
-              if(product)openCalcProductFromDropdown(product);
-            });
+            quick.querySelector('#bbCalcProductTrigger').addEventListener('click',openCalcProductSheet);
           }
+
+          let lineHead=q('#bbCalcLineHeader');
+          if(!lineHead){
+            const lines=q('#calcLines');
+            lineHead=document.createElement('div');
+            lineHead.id='bbCalcLineHeader';
+            lineHead.hidden=true;
+            lineHead.innerHTML='<span>Product Name</span><span>QTY</span><span>Price</span><span>Total</span>';
+            if(lines)lines.insertAdjacentElement('beforebegin',lineHead);
+          }
+
+          let productModal=q('#bbCalcProductModal');
+          if(!productModal){
+            productModal=document.createElement('div');
+            productModal.id='bbCalcProductModal';
+            productModal.hidden=true;
+            productModal.innerHTML='<div class="bb-calc-product-sheet" role="dialog" aria-modal="true" aria-label="Select Product">'+
+              '<div class="bb-calc-product-sheet-head"><strong>Select Product</strong><button type="button" class="bb-calc-product-sheet-close" aria-label="Close">×</button></div>'+
+              '<div class="bb-calc-product-sheet-meta" id="bbCalcProductSheetMeta">Products</div>'+
+              '<div id="bbCalcProductSheetRows"></div>'+
+              '</div>';
+            document.body.appendChild(productModal);
+            productModal.querySelector('.bb-calc-product-sheet-close').addEventListener('click',closeCalcProductSheet);
+            productModal.addEventListener('click',event=>{if(event.target===productModal)closeCalcProductSheet();});
+          }
+
           renderCalcQuickProducts();
           void loadCalcQuickProducts();
 
@@ -675,6 +780,7 @@ html,body{margin:0;min-height:100%;background:#eef3f8;font-family:Arial,sans-ser
         }
         function sync(){
           if(!ensureUi())return;
+          decorateCalcLines();
           const card=q('#view-calculator .calc-control-card');
           const products=q('#view-calculator .calc-products-card');
           const total=q('#view-calculator .calc-total-card');
@@ -713,8 +819,37 @@ html,body{margin:0;min-height:100%;background:#eef3f8;font-family:Arial,sans-ser
           updateBar();
           lastCount=count;
         }
+        function decorateCalcLines(){
+          const lines=q('#calcLines');
+          const header=q('#bbCalcLineHeader');
+          if(!lines)return;
+
+          const rows=Array.from(lines.querySelectorAll('.calc-product-row'));
+          if(header)header.hidden=rows.length===0;
+
+          rows.forEach(row=>{
+            const name=row.querySelector('.calc-product-main strong');
+            if(name&&/^\d+\.\s*/.test(name.textContent||'')){
+              name.textContent=(name.textContent||'').replace(/^\d+\.\s*/,'');
+            }
+
+            const detail=row.querySelector('.calc-product-main small');
+            const qtyButton=row.querySelector('.calc-qty-value');
+            if(qtyButton&&!qtyButton.dataset.bbUnitDone){
+              const detailText=clean(detail?.textContent);
+              const parts=detailText.split('·').map(clean).filter(Boolean);
+              const unit=parts.length>1?parts[parts.length-1]:'';
+              const shortUnit=shortCalcUnit(unit);
+              if(shortUnit){
+                qtyButton.textContent=clean(qtyButton.textContent)+shortUnit;
+              }
+              qtyButton.dataset.bbUnitDone='1';
+            }
+          });
+        }
+
         function observe(){
-          const lines=q('#calcLines');if(lines&&!lines.__bbMobileCalcObserved){lines.__bbMobileCalcObserved=true;new MutationObserver(()=>requestAnimationFrame(sync)).observe(lines,{childList:true,subtree:true});}
+          const lines=q('#calcLines');if(lines&&!lines.__bbMobileCalcObserved){lines.__bbMobileCalcObserved=true;new MutationObserver(()=>requestAnimationFrame(()=>{decorateCalcLines();sync();})).observe(lines,{childList:true,subtree:true});}
           ['calcCustomerSearch','calcLocation','calcCurrency','calcRate'].forEach(id=>{const el=document.getElementById(id);if(el&&!el.__bbMobileCalcBound){el.__bbMobileCalcBound=true;el.addEventListener('input',()=>{if(id==='calcCustomerSearch')selectedHistoryCustomerKey='';updateBar();});el.addEventListener('change',updateBar);}});
           const suggestions=q('#calcCustomerSuggestions');
           if(suggestions&&!suggestions.__bbMobilePreviewBound){
