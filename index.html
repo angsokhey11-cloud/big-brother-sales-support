@@ -307,7 +307,6 @@ html,body{margin:0;min-height:100%;background:#eef3f8;font-family:Arial,sans-ser
         .bb-calc-product-sheet-row{display:grid!important;grid-template-columns:minmax(0,1fr) auto!important;gap:8px!important;align-items:center!important;width:100%!important;min-height:53px!important;padding:8px 4px!important;border:0!important;border-bottom:1px solid #d8e1ea!important;background:#fff!important;text-align:left!important}
         .bb-calc-product-sheet-row strong{display:block!important;color:#173f77!important;font-size:11px!important;line-height:1.2!important}
         .bb-calc-product-sheet-row small{display:block!important;margin-top:3px!important;color:#7b8da0!important;font-size:7.5px!important;font-weight:800!important}
-        .bb-calc-product-sheet-stock{color:#2f628f!important;font-size:8px!important;font-weight:900!important;white-space:nowrap!important}
         .bb-calc-product-sheet-empty{padding:24px 10px!important;text-align:center!important;color:#71869c!important;font-size:10px!important;font-weight:800!important}
 
         #bbCalcLineHeader{display:grid!important;grid-template-columns:minmax(0,1fr) 54px 68px 72px 28px!important;gap:4px!important;align-items:center!important;min-height:28px!important;padding:0 7px!important;background:#f5f8fc!important;border:1px solid #dfe7f0!important;border-bottom:0!important;border-radius:9px 9px 0 0!important;color:#677b91!important;font-size:6.5px!important;font-weight:900!important;text-transform:uppercase!important}
@@ -494,6 +493,8 @@ html,body{margin:0;min-height:100%;background:#eef3f8;font-family:Arial,sans-ser
           return bbCalcName(a).localeCompare(bbCalcName(b),undefined,{sensitivity:'base'});
         }
         function bbCalcQuickRows(){
+          if(bbCalcQuickScope?.loadError)return [];
+
           let rows=bbCalcQuickProducts.slice();
           const openCount=Math.max(0,num(bbCalcQuickScope?.openBatchCount));
 
@@ -563,11 +564,19 @@ html,body{margin:0;min-height:100%;background:#eef3f8;font-family:Arial,sans-ser
 
           const rows=bbCalcQuickRows();
           const openCount=Math.max(0,num(bbCalcQuickScope?.openBatchCount));
+          const loadError=bbCalcQuickScope?.loadError===true;
 
           if(sheetMeta){
-            sheetMeta.textContent=openCount>0
-              ? 'Open Batch Products · '+rows.length+' products'
-              : 'All Products · '+rows.length+' products';
+            sheetMeta.textContent=loadError
+              ? 'Batch products could not load'
+              : openCount>0
+                ? 'Open Batch Products · '+rows.length+' products'
+                : 'All Products · '+rows.length+' products';
+          }
+
+          if(loadError){
+            rowsBox.innerHTML='<div class="bb-calc-product-sheet-empty">Could not confirm your open batch products. Close and reopen Calculator to try again.</div>';
+            return;
           }
 
           if(!rows.length){
@@ -600,6 +609,11 @@ html,body{margin:0;min-height:100%;background:#eef3f8;font-family:Arial,sans-ser
 
         function openCalcProductSheet(){
           if(!enforceCalcAccountSession())return;
+
+          if(bbCalcQuickScope?.loadError){
+            void loadCalcQuickProducts(true);
+          }
+
           const modal=q('#bbCalcProductModal');
           if(!modal)return;
           renderCalcProductSheet();
@@ -622,19 +636,24 @@ html,body{margin:0;min-height:100%;background:#eef3f8;font-family:Arial,sans-ser
 
           const rows=bbCalcQuickRows();
           const openCount=Math.max(0,num(bbCalcQuickScope?.openBatchCount));
+          const loadError=bbCalcQuickScope?.loadError===true;
 
-          trigger.textContent='Select Product';
-          trigger.disabled=rows.length===0;
+          trigger.textContent=loadError?'Retry Batch Products':'Select Product';
+          trigger.disabled=false;
 
-          if(label)label.textContent=openCount>0?'Open Batch Products':'Select Product';
-          if(meta)meta.textContent=rows.length+' products';
+          if(label)label.textContent=loadError
+            ? 'Batch Products'
+            : openCount>0
+              ? 'Open Batch Products'
+              : 'Select Product';
+          if(meta)meta.textContent=loadError?'Tap to retry':rows.length+' products';
 
           renderCalcProductSheet();
         }
 
         async function loadCalcQuickProducts(force=false){
           if(bbCalcQuickLoading)return;
-          if(bbCalcQuickReady&&!force){
+          if(bbCalcQuickReady&&!force&&!bbCalcQuickScope?.loadError){
             renderCalcQuickProducts();
             return;
           }
@@ -648,29 +667,40 @@ html,body{margin:0;min-height:100%;background:#eef3f8;font-family:Arial,sans-ser
               throw new Error('Sales Support data is not ready.');
             }
 
-            const [bootstrap,scope]=await Promise.all([
-              adapter.bootstrap(!!force),
-              adapter.rpc('bb_sales_support_calculator_batch_scope')
-            ]);
-
+            const bootstrap=await adapter.bootstrap(!!force);
             bbCalcQuickProducts=Array.isArray(bootstrap?.products)
               ? bootstrap.products.slice()
               : [];
 
-            bbCalcQuickScope=scope&&scope.success
-              ? scope
-              : {openBatchCount:0,items:[]};
+            let scope=null;
+            let scopeError=null;
 
+            for(let attempt=0;attempt<2;attempt++){
+              try{
+                scope=await adapter.rpc('bb_sales_support_calculator_batch_scope');
+                if(scope?.success)break;
+                throw new Error('Open batch product scope was not ready.');
+              }catch(error){
+                scopeError=error;
+                if(attempt===0){
+                  await new Promise(resolve=>setTimeout(resolve,300));
+                }
+              }
+            }
+
+            if(!scope?.success){
+              throw scopeError||new Error('Could not load open batch products.');
+            }
+
+            bbCalcQuickScope=scope;
             bbCalcQuickReady=true;
           }catch(error){
-            console.warn('Calculator product list:',error);
-            try{
-              const bootstrap=await window.BBSalesSupportAdapter?.bootstrap?.();
-              bbCalcQuickProducts=Array.isArray(bootstrap?.products)
-                ? bootstrap.products.slice()
-                : [];
-            }catch(_){}
-            bbCalcQuickScope={openBatchCount:0,items:[]};
+            console.warn('Calculator batch product list:',error);
+            bbCalcQuickScope={
+              openBatchCount:0,
+              items:[],
+              loadError:true
+            };
             bbCalcQuickReady=true;
           }finally{
             bbCalcQuickLoading=false;
