@@ -220,6 +220,12 @@ html,body{margin:0;min-height:100%;background:#eef3f8;font-family:Arial,sans-ser
         `    $("calcPriceInput").value = "";`
       );
 
+      /* Mobile group rows reuse the existing QTY -> Price -> line flow. */
+      html=html.replace(
+        '  async function addCalcProduct(){',
+        '  window.BBSelectCalculatorProduct = selectCalculatorProduct;\n\n  async function addCalcProduct(){'
+      );
+
       const mobileStyle=`<style id="bb-mobile-calculator-v2">
         html,body{background:#eef4fa!important;overflow-x:hidden!important;touch-action:pan-x pan-y!important}
         body{padding:0!important}
@@ -303,6 +309,12 @@ html,body{margin:0;min-height:100%;background:#eef3f8;font-family:Arial,sans-ser
         .bb-calc-product-sheet-head strong{color:#173f77!important;font-size:16px!important}
         .bb-calc-product-sheet-close{width:38px!important;height:38px!important;border:0!important;border-radius:10px!important;background:#edf3f9!important;color:#315776!important;font-size:18px!important;font-weight:900!important}
         .bb-calc-product-sheet-meta{padding:7px 16px!important;background:#f6f9fc!important;border-bottom:1px solid #e5ebf2!important;color:#68809a!important;font-size:8px!important;font-weight:900!important}
+        .bb-calc-product-group-toggle{padding:9px 16px!important;border-bottom:1px solid #e5ebf2!important;background:#fff!important}
+        .bb-calc-product-group-toggle label{display:flex!important;align-items:center!important;gap:9px!important;cursor:pointer!important}
+        .bb-calc-product-group-toggle input{width:18px!important;height:18px!important;min-width:18px!important;accent-color:#173f77!important}
+        .bb-calc-product-group-toggle strong{display:block!important;color:#173f77!important;font-size:10px!important}
+        .bb-calc-product-group-toggle small{display:block!important;margin-top:2px!important;color:#7b8da0!important;font-size:7.5px!important;font-weight:800!important}
+        .bb-calc-product-sheet-row[data-bb-calc-group="1"] strong{color:#0f5f9f!important}
         #bbCalcProductSheetRows{overflow:auto!important;-webkit-overflow-scrolling:touch!important;padding:0 16px 10px!important}
         .bb-calc-product-sheet-row{display:grid!important;grid-template-columns:minmax(0,1fr) auto!important;gap:8px!important;align-items:center!important;width:100%!important;min-height:53px!important;padding:8px 4px!important;border:0!important;border-bottom:1px solid #d8e1ea!important;background:#fff!important;text-align:left!important}
         .bb-calc-product-sheet-row strong{display:block!important;color:#173f77!important;font-size:11px!important;line-height:1.2!important}
@@ -464,6 +476,28 @@ html,body{margin:0;min-height:100%;background:#eef3f8;font-family:Arial,sans-ser
           return false;
         }
 
+        function calcGroupPreferenceKey(){
+          const accountId=
+            clean(window.BB_CALC_ACCOUNT_ID)||
+            currentCalcSessionAccountId()||
+            'anonymous';
+          return 'bb_sales_support_calc_use_groups_v1_'+accountId;
+        }
+
+        function readCalcGroupPreference(){
+          try{return localStorage.getItem(calcGroupPreferenceKey())==='1';}
+          catch(_){return false;}
+        }
+
+        function saveCalcGroupPreference(){
+          try{
+            localStorage.setItem(
+              calcGroupPreferenceKey(),
+              bbCalcUseGroups?'1':'0'
+            );
+          }catch(_){}
+        }
+
         const BB_CALC_PRODUCT_ORDER=[
           'KIR3-2L','KIRB-2L','KIR0-830','KIR3-830',
           'FF-2L','AF-2L','VP-2L','OM-2L',
@@ -474,6 +508,16 @@ html,body{margin:0;min-height:100%;background:#eef3f8;font-family:Arial,sans-ser
         const BB_CALC_PRODUCT_RANK=new Map(
           BB_CALC_PRODUCT_ORDER.map((code,index)=>[code,index])
         );
+        const BB_CALC_GROUP_ORDER=[
+          'KIR-2L-GRP','KIR-830-GRP',
+          'FF-2L','AF-2L','VP-2L','OM-2L',
+          'GF-190','GF-1L','GFJ-1L',
+          'KIR-135-GRP','CMP-220ML-GRP'
+        ];
+        const BB_CALC_GROUP_RANK=new Map(
+          BB_CALC_GROUP_ORDER.map((code,index)=>[code.toUpperCase(),index])
+        );
+        let bbCalcUseGroups=readCalcGroupPreference();
         let bbCalcQuickProducts=[];
         let bbCalcQuickScope={openBatchCount:0,items:[]};
         let bbCalcQuickReady=false;
@@ -492,6 +536,40 @@ html,body{margin:0;min-height:100%;background:#eef3f8;font-family:Arial,sans-ser
           if(aRank!==bRank)return aRank-bRank;
           return bbCalcName(a).localeCompare(bbCalcName(b),undefined,{sensitivity:'base'});
         }
+        function bbCalcGroupMap(){
+          const map=new Map();
+          const mappings=Array.isArray(bbCalcQuickScope?.groupMappings)
+            ? bbCalcQuickScope.groupMappings
+            : [];
+
+          mappings.forEach(item=>{
+            const productCode=clean(item?.productCode).toUpperCase();
+            const groupCode=clean(item?.groupCode).toUpperCase();
+            if(!productCode||!groupCode)return;
+
+            map.set(productCode,{
+              groupCode,
+              groupName:clean(item?.groupName)||groupCode
+            });
+          });
+
+          return map;
+        }
+
+        function bbCalcGroupCompare(a,b){
+          const aCode=bbCalcCode(a);
+          const bCode=bbCalcCode(b);
+          const aRank=BB_CALC_GROUP_RANK.has(aCode)
+            ? BB_CALC_GROUP_RANK.get(aCode)
+            : 9999;
+          const bRank=BB_CALC_GROUP_RANK.has(bCode)
+            ? BB_CALC_GROUP_RANK.get(bCode)
+            : 9999;
+
+          if(aRank!==bRank)return aRank-bRank;
+          return bbCalcProductCompare(a,b);
+        }
+
         function bbCalcQuickRows(){
           if(bbCalcQuickScope?.loadError)return [];
 
@@ -508,7 +586,66 @@ html,body{margin:0;min-height:100%;background:#eef3f8;font-family:Arial,sans-ser
             rows=rows.filter(product=>allowed.has(bbCalcCode(product)));
           }
 
-          return rows.sort(bbCalcProductCompare);
+          rows=rows.sort(bbCalcProductCompare);
+
+          if(!bbCalcUseGroups)return rows;
+
+          const mappings=bbCalcGroupMap();
+          const output=[];
+          const groups=new Map();
+
+          rows.forEach(product=>{
+            const code=bbCalcCode(product);
+            const mapping=mappings.get(code);
+
+            if(!mapping){
+              output.push(product);
+              return;
+            }
+
+            const groupCode=mapping.groupCode;
+            let group=groups.get(groupCode);
+
+            if(!group){
+              group={
+                code:groupCode,
+                name:mapping.groupName,
+                unit:clean(product?.unit),
+                usdPrice:0,
+                isGroup:true,
+                memberCodes:[code]
+              };
+              groups.set(groupCode,group);
+              output.push(group);
+              return;
+            }
+
+            group.memberCodes.push(code);
+            if(
+              clean(group.unit).toLowerCase()!==
+              clean(product?.unit).toLowerCase()
+            ){
+              group.unit='';
+            }
+          });
+
+          return output.sort(bbCalcGroupCompare);
+        }
+
+        function openCalcGroupProduct(product){
+          const select=window.BBSelectCalculatorProduct;
+          if(typeof select!=='function'){
+            console.warn('Calculator group product flow is not ready.');
+            return;
+          }
+
+          select({
+            code:bbCalcCode(product),
+            name:bbCalcName(product),
+            unit:clean(product?.unit),
+            usdPrice:0,
+            isGroup:true
+          });
         }
 
         function openCalcProductFromDropdown(product){
@@ -565,6 +702,8 @@ html,body{margin:0;min-height:100%;background:#eef3f8;font-family:Arial,sans-ser
           const rows=bbCalcQuickRows();
           const openCount=Math.max(0,num(bbCalcQuickScope?.openBatchCount));
           const loadError=bbCalcQuickScope?.loadError===true;
+          const groupToggle=q('#bbCalcUseProductGroups');
+          if(groupToggle)groupToggle.checked=bbCalcUseGroups;
 
           if(sheetMeta){
             sheetMeta.textContent=loadError
@@ -591,18 +730,29 @@ html,body{margin:0;min-height:100%;background:#eef3f8;font-family:Arial,sans-ser
           rowsBox.innerHTML=rows.map(product=>{
             const code=bbCalcCode(product);
             const unit=clean(product?.unit);
-            return '<button type="button" class="bb-calc-product-sheet-row" data-bb-calc-code="'+code+'">'+
+            const isGroup=product?.isGroup===true;
+            const detail=isGroup
+              ? 'Product Group'+(unit?' · '+unit:'')
+              : code+(unit?' · '+unit:'');
+
+            return '<button type="button" class="bb-calc-product-sheet-row" data-bb-calc-code="'+code+'" data-bb-calc-group="'+(isGroup?'1':'0')+'">'+
               '<span><strong>'+bbCalcName(product)+'</strong>'+
-              '<small>'+code+(unit?' · '+unit:'')+'</small></span>'+
+              '<small>'+detail+'</small></span>'+
               '</button>';
           }).join('');
 
           rowsBox.querySelectorAll('[data-bb-calc-code]').forEach(button=>{
             button.addEventListener('click',()=>{
               const code=clean(button.dataset.bbCalcCode).toUpperCase();
-              const product=bbCalcQuickProducts.find(item=>bbCalcCode(item)===code);
+              const product=bbCalcQuickRows().find(
+                item=>bbCalcCode(item)===code
+              );
+
               closeCalcProductSheet();
-              if(product)openCalcProductFromDropdown(product);
+
+              if(!product)return;
+              if(product?.isGroup===true)openCalcGroupProduct(product);
+              else openCalcProductFromDropdown(product);
             });
           });
         }
@@ -831,11 +981,20 @@ html,body{margin:0;min-height:100%;background:#eef3f8;font-family:Arial,sans-ser
             productModal.innerHTML='<div class="bb-calc-product-sheet" role="dialog" aria-modal="true" aria-label="Select Product">'+
               '<div class="bb-calc-product-sheet-head"><strong>Select Product</strong><button type="button" class="bb-calc-product-sheet-close" aria-label="Close">×</button></div>'+
               '<div class="bb-calc-product-sheet-meta" id="bbCalcProductSheetMeta">Products</div>'+
+              '<div class="bb-calc-product-group-toggle"><label><input type="checkbox" id="bbCalcUseProductGroups"><span><strong>Use Product Groups</strong><small>Show one group name instead of its specific products.</small></span></label></div>'+
               '<div id="bbCalcProductSheetRows"></div>'+
               '</div>';
             document.body.appendChild(productModal);
             productModal.querySelector('.bb-calc-product-sheet-close').addEventListener('click',closeCalcProductSheet);
             productModal.addEventListener('click',event=>{if(event.target===productModal)closeCalcProductSheet();});
+
+            const groupToggle=productModal.querySelector('#bbCalcUseProductGroups');
+            groupToggle.checked=bbCalcUseGroups;
+            groupToggle.addEventListener('change',()=>{
+              bbCalcUseGroups=groupToggle.checked===true;
+              saveCalcGroupPreference();
+              renderCalcQuickProducts();
+            });
           }
 
           renderCalcQuickProducts();
