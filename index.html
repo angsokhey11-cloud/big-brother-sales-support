@@ -442,6 +442,29 @@ html,body{margin:0;min-height:100%;background:#eef3f8;font-family:Arial,sans-ser
         const clean=v=>String(v==null?'':v).trim();
         const num=v=>{const n=Number(v);return Number.isFinite(n)?n:0;};
 
+        function currentCalcSessionAccountId(){
+          try{
+            const session=JSON.parse(
+              localStorage.getItem('BB_SUPABASE_DEV_SESSION_V1')||'null'
+            );
+            return clean(session?.user?.id);
+          }catch(_){
+            return '';
+          }
+        }
+
+        function calcAccountMatchesSession(){
+          const pageAccount=clean(window.BB_CALC_ACCOUNT_ID);
+          const liveAccount=currentCalcSessionAccountId();
+          return !pageAccount||!liveAccount||pageAccount===liveAccount;
+        }
+
+        function enforceCalcAccountSession(){
+          if(calcAccountMatchesSession())return true;
+          try{ location.reload(); }catch(_){}
+          return false;
+        }
+
         const BB_CALC_PRODUCT_ORDER=[
           'KIR3-2L','KIRB-2L','KIR0-830','KIR3-830',
           'FF-2L','AF-2L','VP-2L','OM-2L',
@@ -672,6 +695,7 @@ html,body{margin:0;min-height:100%;background:#eef3f8;font-family:Arial,sans-ser
         }
 
         function openCalcProductSheet(){
+          if(!enforceCalcAccountSession())return;
           const modal=q('#bbCalcProductModal');
           if(!modal)return;
           renderCalcProductSheet();
@@ -912,6 +936,7 @@ html,body{margin:0;min-height:100%;background:#eef3f8;font-family:Arial,sans-ser
           syncPreviewButton();
         }
         function sync(){
+          if(!enforceCalcAccountSession())return;
           if(!ensureUi())return;
           decorateCalcLines();
           const card=q('#view-calculator .calc-control-card');
