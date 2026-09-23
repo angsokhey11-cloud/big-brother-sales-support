@@ -411,6 +411,17 @@ html,body{margin:0;min-height:100%;background:#eef3f8;font-family:Arial,sans-ser
         const BB_CALC_PRODUCT_RANK=new Map(
           BB_CALC_PRODUCT_ORDER.map((code,index)=>[code,index])
         );
+        const BB_CALC_PRODUCT_GROUPS=[
+          ['KIR3-2L','KIRB-2L'],
+          ['KIR0-830','KIR3-830'],
+          ['KIRP-Y135','KIRS-Y135','KIRV-Y135'],
+          ['CH-O220','CHM-220','CHP-220','CHS-220','CHT-220']
+        ];
+        const BB_CALC_GROUP_BY_CODE=new Map();
+        BB_CALC_PRODUCT_GROUPS.forEach(group=>{
+          group.forEach(code=>BB_CALC_GROUP_BY_CODE.set(code,group));
+        });
+
         let bbCalcQuickProducts=[];
         let bbCalcQuickScope={openBatchCount:0,items:[]};
         let bbCalcQuickReady=false;
@@ -429,6 +440,84 @@ html,body{margin:0;min-height:100%;background:#eef3f8;font-family:Arial,sans-ser
           if(aRank!==bRank)return aRank-bRank;
           return bbCalcName(a).localeCompare(bbCalcName(b),undefined,{sensitivity:'base'});
         }
+        function bbCalcBatchBaseBalances(){
+          const balances=new Map();
+          const items=Array.isArray(bbCalcQuickScope?.items)
+            ? bbCalcQuickScope.items
+            : [];
+
+          items.forEach(item=>{
+            const code=bbCalcCode(item);
+            if(!code)return;
+            balances.set(code,num(item?.currentQty));
+          });
+
+          Array.from(balances.keys()).forEach(code=>{
+            const group=BB_CALC_GROUP_BY_CODE.get(code);
+            if(!group)return;
+            group.forEach(member=>{
+              if(!balances.has(member))balances.set(member,0);
+            });
+          });
+
+          return balances;
+        }
+
+        function bbCalcApplyProjectedSale(balances,code,qty){
+          let remaining=Math.max(0,num(qty));
+          if(!(remaining>0)||!balances.has(code))return;
+
+          const current=num(balances.get(code));
+          const ownAvailable=Math.max(0,current);
+          const ownTake=Math.min(ownAvailable,remaining);
+          balances.set(code,current-ownTake);
+          remaining-=ownTake;
+
+          if(!(remaining>0.000001))return;
+
+          const group=BB_CALC_GROUP_BY_CODE.get(code);
+          const siblings=Array.isArray(group)
+            ? group.filter(member=>member!==code&&balances.has(member))
+            : [];
+
+          siblings.forEach(member=>{
+            if(!(remaining>0.000001))return;
+            const siblingCurrent=num(balances.get(member));
+            const siblingAvailable=Math.max(0,siblingCurrent);
+            if(!(siblingAvailable>0))return;
+
+            const take=Math.min(siblingAvailable,remaining);
+            balances.set(member,siblingCurrent-take);
+            remaining-=take;
+          });
+
+          if(remaining>0.000001){
+            const deficitCode=siblings.length?siblings[0]:code;
+            balances.set(
+              deficitCode,
+              num(balances.get(deficitCode))-remaining
+            );
+          }
+        }
+
+        function bbCalcProjectedBalances(){
+          const balances=bbCalcBatchBaseBalances();
+          const openCount=Math.max(0,num(bbCalcQuickScope?.openBatchCount));
+          if(!(openCount>0))return balances;
+
+          const entries=historyEntries().slice().reverse();
+          entries.forEach(entry=>{
+            const lines=Array.isArray(entry?.lines)?entry.lines:[];
+            lines.forEach(line=>{
+              const code=clean(line?.productCode).toUpperCase();
+              if(!code||!balances.has(code))return;
+              bbCalcApplyProjectedSale(balances,code,line?.qty);
+            });
+          });
+
+          return balances;
+        }
+
         function bbCalcQuickRows(){
           let rows=bbCalcQuickProducts.slice();
           const openCount=Math.max(0,num(bbCalcQuickScope?.openBatchCount));
@@ -438,6 +527,12 @@ html,body{margin:0;min-height:100%;background:#eef3f8;font-family:Arial,sans-ser
                 .map(item=>bbCalcCode(item))
                 .filter(Boolean)
             );
+
+            Array.from(allowed).forEach(code=>{
+              const group=BB_CALC_GROUP_BY_CODE.get(code);
+              if(group)group.forEach(member=>allowed.add(member));
+            });
+
             rows=rows.filter(product=>allowed.has(bbCalcCode(product)));
           }
           return rows.sort(bbCalcProductCompare);
@@ -495,10 +590,7 @@ html,body{margin:0;min-height:100%;background:#eef3f8;font-family:Arial,sans-ser
 
           const rows=bbCalcQuickRows();
           const openCount=Math.max(0,num(bbCalcQuickScope?.openBatchCount));
-          const currentByCode=new Map(
-            (Array.isArray(bbCalcQuickScope?.items)?bbCalcQuickScope.items:[])
-              .map(item=>[bbCalcCode(item),num(item?.currentQty)])
-          );
+          const currentByCode=bbCalcProjectedBalances();
 
           if(sheetMeta){
             sheetMeta.textContent=openCount>0
@@ -852,6 +944,14 @@ html,body{margin:0;min-height:100%;background:#eef3f8;font-family:Arial,sans-ser
 
         function observe(){
           const lines=q('#calcLines');if(lines&&!lines.__bbMobileCalcObserved){lines.__bbMobileCalcObserved=true;new MutationObserver(()=>requestAnimationFrame(()=>{decorateCalcLines();sync();})).observe(lines,{childList:true,subtree:true});}
+
+          const history=q('#calcHistoryList');
+          if(history&&!history.__bbCalcStockProjectionObserved){
+            history.__bbCalcStockProjectionObserved=true;
+            new MutationObserver(()=>requestAnimationFrame(renderCalcQuickProducts))
+              .observe(history,{childList:true,subtree:true});
+          }
+
           ['calcCustomerSearch','calcLocation','calcCurrency','calcRate'].forEach(id=>{const el=document.getElementById(id);if(el&&!el.__bbMobileCalcBound){el.__bbMobileCalcBound=true;el.addEventListener('input',()=>{if(id==='calcCustomerSearch')selectedHistoryCustomerKey='';updateBar();});el.addEventListener('change',updateBar);}});
           const suggestions=q('#calcCustomerSuggestions');
           if(suggestions&&!suggestions.__bbMobilePreviewBound){
@@ -888,6 +988,9 @@ html,body{margin:0;min-height:100%;background:#eef3f8;font-family:Arial,sans-ser
           }
         }
         function boot(){if(!ensureUi()){setTimeout(boot,80);return;}observe();sync();void loadCalcQuickProducts();setTimeout(sync,250);setTimeout(sync,800);}
+        window.addEventListener('storage',event=>{
+          if(event.key===HISTORY_KEY)renderCalcQuickProducts();
+        });
         if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',boot,{once:true});else boot();
       })();</scr`+`ipt>`;
 
