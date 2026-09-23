@@ -829,8 +829,10 @@ html,body{margin:0;min-height:100%;background:#eef3f8;font-family:Arial,sans-ser
 
           rows.forEach(row=>{
             const name=row.querySelector('.calc-product-main strong');
-            if(name&&/^\d+\.\s*/.test(name.textContent||'')){
-              name.textContent=(name.textContent||'').replace(/^\d+\.\s*/,'');
+            const nameText=clean(name?.textContent);
+            const prefixEnd=nameText.indexOf('. ');
+            if(name&&prefixEnd>0&&/^[0-9]+$/.test(nameText.slice(0,prefixEnd))){
+              name.textContent=nameText.slice(prefixEnd+2);
             }
 
             const detail=row.querySelector('.calc-product-main small');
