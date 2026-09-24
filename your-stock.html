@@ -391,10 +391,7 @@ async function load(showLoader=true){
       const selected=data?.selectedBatch||null;
       adminSelectedBatchId=clean(selected?.batchId)||adminSelectedBatchId;
       if(selected){
-        const selectedKey=adminSalesmanKey(selected);
-        if(!adminSelectedSalesmanKey){
-          adminSelectedSalesmanKey=selectedKey;
-        }
+        adminSelectedSalesmanKey=adminSalesmanKey(selected);
       }
     }
 
