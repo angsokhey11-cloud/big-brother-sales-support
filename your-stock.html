@@ -82,7 +82,7 @@ body.bb-stock-desktop-staff.bb-stock-admin-batch .summary .kpi:nth-child(2){disp
 
     <section class="card section">
       <div class="section-head"><strong id="itemSectionTitle">Current Stock Detail</strong><span id="itemCount">0 items</span></div>
-      <div id="salesPrivacyNote" class="privacy-note" hidden><strong>Your responsibility view:</strong> company batch, location and cost information is protected.</div>
+      <div id="salesPrivacyNote" class="privacy-note" hidden><strong>Your responsibility view:</strong> only your own pending batches and stock are shown.</div>
       <div class="toolbar"><input id="searchBox" type="search" placeholder="Search product…"></div>
       <div class="table-wrap"><table id="itemTable" class="table"><thead id="itemHead"></thead><tbody id="itemRows"></tbody></table></div>
     </section>
@@ -101,7 +101,7 @@ const num=v=>{const n=Number(v);return Number.isFinite(n)?n:0};
 const esc=v=>clean(v).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#039;');
 const qty=v=>num(v).toLocaleString('en-US',{maximumFractionDigits:2});
 const money=v=>'$'+num(v).toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2});
-let session=null,data=null,loadingNow=false,adminSelectedBatchId='',adminSelectedSalesmanKey='';
+let session=null,data=null,loadingNow=false,adminSelectedBatchId='',adminSelectedSalesmanKey='',staffSelectedBatchId='';
 const BB_MOBILE_STOCK_LIST=new URLSearchParams(location.search).get('mobileSkin')==='1';
 const BB_STOCK_GROUPS={
   'KIR-2L-GRP':{name:'Kirisu Milk 2L',codes:['KIR3-2L','KIRB-2L']},
@@ -254,75 +254,115 @@ function adminSalesmanKey(batch){
 function renderBatches(){
   const list=Array.isArray(data?.batches)?data.batches:[];
   const salesmanSelect=$('adminSalesmanFilter');
+  const salesmanField=$('salesmanFilterField');
   const batchSelect=$('adminBatchFilter');
   const info=$('adminBatchInfo');
-  if(!salesmanSelect||!batchSelect||!info)return;
+  const title=$('batchSectionTitle');
+  if(!salesmanSelect||!salesmanField||!batchSelect||!info||!title)return;
 
-  if(!list.length){
-    salesmanSelect.innerHTML='<option value="">No salesman with pending stock</option>';
-    batchSelect.innerHTML='<option value="">No pending batch</option>';
-    salesmanSelect.disabled=true;
-    batchSelect.disabled=true;
-    info.innerHTML='<div class="empty" style="grid-column:1/-1">No pending salesman batch is currently open.</div>';
-    adminSelectedBatchId='';
-    adminSelectedSalesmanKey='';
+  if(data?.isAdmin){
+    title.textContent='Admin Pending Batch View';
+    salesmanField.hidden=false;
+
+    if(!list.length){
+      salesmanSelect.innerHTML='<option value="">No salesman with pending stock</option>';
+      batchSelect.innerHTML='<option value="">No pending batch</option>';
+      salesmanSelect.disabled=true;
+      batchSelect.disabled=true;
+      info.innerHTML='<div class="empty" style="grid-column:1/-1">No pending salesman batch is currently open.</div>';
+      adminSelectedBatchId='';
+      adminSelectedSalesmanKey='';
+      return;
+    }
+
+    salesmanSelect.disabled=false;
+    batchSelect.disabled=false;
+
+    const selected=data?.selectedBatch||list.find(x=>clean(x.batchId)===clean(adminSelectedBatchId))||list[0];
+    const selectedKey=adminSalesmanKey(selected);
+
+    const salesmanMap=new Map();
+    list.forEach(batch=>{
+      const key=adminSalesmanKey(batch);
+      if(!salesmanMap.has(key)){
+        salesmanMap.set(key,{
+          key,
+          name:clean(batch.salesmanName)||clean(batch.salesmanStaffId)||'Unassigned',
+          staffId:clean(batch.salesmanStaffId)
+        });
+      }
+    });
+
+    if(!adminSelectedSalesmanKey||!salesmanMap.has(adminSelectedSalesmanKey)){
+      adminSelectedSalesmanKey=selectedKey||salesmanMap.keys().next().value||'';
+    }
+
+    salesmanSelect.innerHTML=[...salesmanMap.values()]
+      .sort((a,b)=>a.name.localeCompare(b.name,undefined,{sensitivity:'base'}))
+      .map(x=>`<option value="${esc(x.key)}">${esc(x.name)}${x.staffId?' · '+esc(x.staffId):''}</option>`)
+      .join('');
+    salesmanSelect.value=adminSelectedSalesmanKey;
+
+    let filtered=list.filter(x=>adminSalesmanKey(x)===adminSelectedSalesmanKey);
+    if(!filtered.length){
+      adminSelectedSalesmanKey=selectedKey;
+      salesmanSelect.value=adminSelectedSalesmanKey;
+      filtered=list.filter(x=>adminSalesmanKey(x)===adminSelectedSalesmanKey);
+    }
+
+    const requestedId=clean(adminSelectedBatchId||selected?.batchId);
+    const chosen=filtered.find(x=>clean(x.batchId)===requestedId)||filtered[0]||selected;
+    adminSelectedBatchId=clean(chosen?.batchId);
+
+    batchSelect.innerHTML=filtered.map(x=>
+      `<option value="${esc(x.batchId)}">${esc(x.batchId)} · ${esc(dateText(x.batchDate))} · ${esc(qty(x.currentQty))}</option>`
+    ).join('');
+    batchSelect.value=adminSelectedBatchId;
+
+    const liveSelected=
+      clean(data?.selectedBatch?.batchId)===adminSelectedBatchId
+        ? data.selectedBatch
+        : chosen;
+
+    info.innerHTML=
+      '<div class="admin-batch-chip"><small>Salesman</small><strong>'+esc(liveSelected?.salesmanName||liveSelected?.salesmanStaffId||'—')+'</strong></div>'+
+      '<div class="admin-batch-chip"><small>Batch</small><strong>'+esc(liveSelected?.batchId||'—')+'</strong></div>'+
+      '<div class="admin-batch-chip"><small>Date</small><strong>'+esc(dateText(liveSelected?.batchDate))+'</strong></div>'+
+      '<div class="admin-batch-chip"><small>Current Qty</small><strong>'+esc(qty(liveSelected?.currentQty))+'</strong></div>';
     return;
   }
 
-  salesmanSelect.disabled=false;
+  title.textContent='My Pending Batches';
+  salesmanField.hidden=true;
+  salesmanSelect.disabled=true;
+
+  if(!list.length){
+    batchSelect.innerHTML='<option value="">No pending batch</option>';
+    batchSelect.disabled=true;
+    info.innerHTML='<div class="empty" style="grid-column:1/-1">You do not have any pending stock batch.</div>';
+    staffSelectedBatchId='';
+    return;
+  }
+
   batchSelect.disabled=false;
 
-  const selected=data?.selectedBatch||list.find(x=>clean(x.batchId)===clean(adminSelectedBatchId))||list[0];
-  const selectedKey=adminSalesmanKey(selected);
+  const selected=
+    data?.selectedBatch
+    ||list.find(x=>clean(x.batchId)===clean(staffSelectedBatchId))
+    ||list[0];
 
-  const salesmanMap=new Map();
-  list.forEach(batch=>{
-    const key=adminSalesmanKey(batch);
-    if(!salesmanMap.has(key)){
-      salesmanMap.set(key,{
-        key,
-        name:clean(batch.salesmanName)||clean(batch.salesmanStaffId)||'Unassigned',
-        staffId:clean(batch.salesmanStaffId)
-      });
-    }
-  });
+  staffSelectedBatchId=clean(selected?.batchId);
 
-  if(!adminSelectedSalesmanKey||!salesmanMap.has(adminSelectedSalesmanKey)){
-    adminSelectedSalesmanKey=selectedKey||salesmanMap.keys().next().value||'';
-  }
-
-  salesmanSelect.innerHTML=[...salesmanMap.values()]
-    .sort((a,b)=>a.name.localeCompare(b.name,undefined,{sensitivity:'base'}))
-    .map(x=>`<option value="${esc(x.key)}">${esc(x.name)}${x.staffId?' · '+esc(x.staffId):''}</option>`)
-    .join('');
-  salesmanSelect.value=adminSelectedSalesmanKey;
-
-  let filtered=list.filter(x=>adminSalesmanKey(x)===adminSelectedSalesmanKey);
-  if(!filtered.length){
-    adminSelectedSalesmanKey=selectedKey;
-    salesmanSelect.value=adminSelectedSalesmanKey;
-    filtered=list.filter(x=>adminSalesmanKey(x)===adminSelectedSalesmanKey);
-  }
-
-  const requestedId=clean(adminSelectedBatchId||selected?.batchId);
-  let chosen=filtered.find(x=>clean(x.batchId)===requestedId)||filtered[0]||selected;
-  adminSelectedBatchId=clean(chosen?.batchId);
-
-  batchSelect.innerHTML=filtered.map(x=>
-    `<option value="${esc(x.batchId)}">${esc(x.batchId)} · ${esc(dateText(x.batchDate))} · ${esc(x.locationName||x.locationCode)} · ${esc(qty(x.currentQty))}</option>`
+  batchSelect.innerHTML=list.map(x=>
+    `<option value="${esc(x.batchId)}">${esc(x.batchId)} · ${esc(dateText(x.batchDate))} · ${esc(qty(x.currentQty))}</option>`
   ).join('');
-  batchSelect.value=adminSelectedBatchId;
-
-  const liveSelected=
-    clean(data?.selectedBatch?.batchId)===adminSelectedBatchId
-      ? data.selectedBatch
-      : chosen;
+  batchSelect.value=staffSelectedBatchId;
 
   info.innerHTML=
-    '<div class="admin-batch-chip"><small>Salesman</small><strong>'+esc(liveSelected?.salesmanName||liveSelected?.salesmanStaffId||'—')+'</strong></div>'+
-    '<div class="admin-batch-chip"><small>Batch</small><strong>'+esc(liveSelected?.batchId||'—')+'</strong></div>'+
-    '<div class="admin-batch-chip"><small>Location</small><strong>'+esc(liveSelected?.locationName||liveSelected?.locationCode||'—')+'</strong></div>'+
-    '<div class="admin-batch-chip"><small>Current Qty</small><strong>'+esc(qty(liveSelected?.currentQty))+'</strong></div>';
+    '<div class="admin-batch-chip"><small>Batch</small><strong>'+esc(selected?.batchId||'—')+'</strong></div>'+
+    '<div class="admin-batch-chip"><small>Date</small><strong>'+esc(dateText(selected?.batchDate))+'</strong></div>'+
+    '<div class="admin-batch-chip"><small>Current Qty</small><strong>'+esc(qty(selected?.currentQty))+'</strong></div>'+
+    '<div class="admin-batch-chip"><small>Products</small><strong>'+esc(Math.round(num(selected?.productCount)).toLocaleString('en-US'))+'</strong></div>';
 }
 function renderItems(){
   renderMobileStaffStock();
@@ -335,23 +375,20 @@ function render(){
 
   $('profile').textContent=isAdmin
     ? '🛡 Admin · All salesman pending stock batches · select one batch to inspect'
-    : '👤 '+(st.staffName||'Staff')+' · '+(st.staffId||'—')+' · Your stock responsibility';
+    : '👤 '+(st.staffName||'Staff')+' · '+(st.staffId||'—')+' · Your pending batch stock';
 
-  $('adminBatchSection').hidden=!isAdmin;
+  $('adminBatchSection').hidden=false;
   $('salesPrivacyNote').hidden=isAdmin;
   $('searchBox').placeholder='Search product…';
+  $('batchUpdated').textContent='Updated '+(data.generatedAt||'now');
 
-  if(isAdmin){
-    $('batchUpdated').textContent='Updated '+(data.generatedAt||'now');
-    $('itemSectionTitle').textContent=data?.selectedBatch?.batchId
-      ? 'Batch Stock · '+data.selectedBatch.batchId
-      : 'Batch Stock';
-  }else{
-    $('itemSectionTitle').textContent='Current Stock Detail';
-  }
+  const selectedId=clean(data?.selectedBatch?.batchId);
+  $('itemSectionTitle').textContent=selectedId
+    ? 'Batch Stock · '+selectedId
+    : 'Batch Stock';
 
   renderSummary();
-  if(isAdmin)renderBatches();
+  renderBatches();
   renderItems();
   $('loading').hidden=true;
   $('content').hidden=false;
@@ -360,6 +397,12 @@ async function fetchStockData(){
   if(data?.isAdmin&&data?.scope==='ALL_OPEN_SALESMAN_BATCHES'){
     return rpc('bb_sales_support_admin_your_stock',{
       p_batch_id:adminSelectedBatchId||null
+    });
+  }
+
+  if(data&&!data?.isAdmin&&data?.scope==='MY_OPEN_BATCHES'){
+    return rpc('bb_sales_support_my_stock',{
+      p_batch_id:staffSelectedBatchId||null
     });
   }
 
@@ -372,7 +415,9 @@ async function fetchStockData(){
     });
   }
 
-  return base;
+  return rpc('bb_sales_support_my_stock',{
+    p_batch_id:staffSelectedBatchId||null
+  });
 }
 async function load(showLoader=true){
   if(loadingNow)return;
@@ -387,12 +432,15 @@ async function load(showLoader=true){
     if(!next?.success)throw new Error('Could not load Your Stock.');
     data=next;
 
+    const selected=data?.selectedBatch||null;
+
     if(data?.isAdmin){
-      const selected=data?.selectedBatch||null;
       adminSelectedBatchId=clean(selected?.batchId)||adminSelectedBatchId;
       if(selected){
         adminSelectedSalesmanKey=adminSalesmanKey(selected);
       }
+    }else{
+      staffSelectedBatchId=clean(selected?.batchId)||staffSelectedBatchId;
     }
 
     render();
@@ -412,6 +460,7 @@ async function load(showLoader=true){
 $('refreshBtn').onclick=()=>load(false);
 $('searchBox').oninput=renderItems;
 $('adminSalesmanFilter').onchange=()=>{
+  if(!data?.isAdmin)return;
   adminSelectedSalesmanKey=$('adminSalesmanFilter').value;
   const list=Array.isArray(data?.batches)?data.batches:[];
   const first=list.find(x=>adminSalesmanKey(x)===adminSelectedSalesmanKey);
@@ -421,10 +470,17 @@ $('adminSalesmanFilter').onchange=()=>{
   load(false);
 };
 $('adminBatchFilter').onchange=()=>{
-  adminSelectedBatchId=$('adminBatchFilter').value;
-  const list=Array.isArray(data?.batches)?data.batches:[];
-  const selected=list.find(x=>clean(x.batchId)===clean(adminSelectedBatchId));
-  if(selected)adminSelectedSalesmanKey=adminSalesmanKey(selected);
+  const id=$('adminBatchFilter').value;
+
+  if(data?.isAdmin){
+    adminSelectedBatchId=id;
+    const list=Array.isArray(data?.batches)?data.batches:[];
+    const selected=list.find(x=>clean(x.batchId)===clean(adminSelectedBatchId));
+    if(selected)adminSelectedSalesmanKey=adminSalesmanKey(selected);
+  }else{
+    staffSelectedBatchId=id;
+  }
+
   BB_OPEN_STOCK_GROUPS.clear();
   $('searchBox').value='';
   load(false);
