@@ -33,7 +33,22 @@ body.bb-stock-desktop-staff #itemRows td:nth-child(2){color:var(--navy);font-wei
 body.bb-stock-desktop-staff #itemRows td:nth-child(3){color:var(--green);font-weight:900}
 body.bb-stock-desktop-staff #itemRows td:nth-child(4){color:#c93c46;font-weight:900}
 body.bb-stock-desktop-staff #itemRows td:nth-child(5){color:var(--blue);font-weight:900}
-@media(max-width:900px){.app{padding:16px}.summary{grid-template-columns:repeat(2,minmax(0,1fr))}.hero{flex-direction:column}.actions{width:100%}.btn{flex:1}}@media(max-width:520px){.summary{grid-template-columns:1fr}.hero h1{font-size:23px}}
+
+/* Admin uses the same proven salesman product-list flow, one pending batch at a time. */
+body.bb-stock-desktop-staff.bb-stock-admin-batch .summary{grid-template-columns:repeat(4,minmax(0,1fr));max-width:none}
+body.bb-stock-desktop-staff.bb-stock-admin-batch .summary .kpi:nth-child(1),
+body.bb-stock-desktop-staff.bb-stock-admin-batch .summary .kpi:nth-child(2){display:block}
+.admin-filter-wrap{padding:14px 16px}
+.admin-filter-grid{display:grid;grid-template-columns:minmax(220px,1fr) minmax(260px,1.4fr);gap:12px}
+.admin-filter-field label{display:block;margin:0 0 5px;color:#53667b;font-size:10px;font-weight:900;text-transform:uppercase;letter-spacing:.35px}
+.admin-filter-field select{width:100%;min-height:40px;border:1px solid #cfd8e5;border-radius:9px;background:#fff;color:#173f77;padding:8px 10px;font:inherit;font-size:12px;font-weight:800}
+.admin-filter-field select:disabled{background:#f3f6f9;color:#8996a6}
+.admin-batch-info{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px;margin-top:12px}
+.admin-batch-chip{padding:9px 10px;border:1px solid #dce5f0;border-radius:9px;background:#f8fbff}
+.admin-batch-chip small{display:block;color:#7a8a9d;font-size:8px;font-weight:900;text-transform:uppercase;letter-spacing:.25px}
+.admin-batch-chip strong{display:block;margin-top:4px;color:#173f77;font-size:11px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+@media(max-width:900px){.app{padding:16px}.summary{grid-template-columns:repeat(2,minmax(0,1fr))}.hero{flex-direction:column}.actions{width:100%}.btn{flex:1}.admin-batch-info{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media(max-width:520px){.summary{grid-template-columns:1fr}.hero h1{font-size:23px}.admin-filter-wrap{padding:9px 10px}.admin-filter-grid{grid-template-columns:1fr;gap:8px}.admin-batch-info{grid-template-columns:1fr 1fr;gap:6px;margin-top:8px}.admin-batch-chip{padding:7px 8px}}
 </style>
 </head>
 <body>
@@ -49,12 +64,24 @@ body.bb-stock-desktop-staff #itemRows td:nth-child(5){color:var(--blue);font-wei
     <section id="summaryCards" class="summary"></section>
 
     <section id="adminBatchSection" class="card section" hidden>
-      <div class="section-head"><strong>Open Batch Responsibility</strong><span id="batchUpdated">Live</span></div>
-      <div class="table-wrap"><table class="table admin-table"><thead><tr><th>Batch</th><th>Date</th><th>Location</th><th class="num">Issued</th><th class="num">Sold</th><th class="num">Back Sale</th><th class="num">Damaged</th><th class="num">Current</th><th class="num">Stock Value</th><th>Status</th></tr></thead><tbody id="batchRows"></tbody></table></div>
+      <div class="section-head"><strong>Admin Pending Batch View</strong><span id="batchUpdated">Live</span></div>
+      <div class="admin-filter-wrap">
+        <div class="admin-filter-grid">
+          <div class="admin-filter-field">
+            <label for="adminSalesmanFilter">Salesman</label>
+            <select id="adminSalesmanFilter"></select>
+          </div>
+          <div class="admin-filter-field">
+            <label for="adminBatchFilter">Pending Batch</label>
+            <select id="adminBatchFilter"></select>
+          </div>
+        </div>
+        <div id="adminBatchInfo" class="admin-batch-info"></div>
+      </div>
     </section>
 
     <section class="card section">
-      <div class="section-head"><strong>Current Stock Detail</strong><span id="itemCount">0 items</span></div>
+      <div class="section-head"><strong id="itemSectionTitle">Current Stock Detail</strong><span id="itemCount">0 items</span></div>
       <div id="salesPrivacyNote" class="privacy-note" hidden><strong>Your responsibility view:</strong> company batch, location and cost information is protected.</div>
       <div class="toolbar"><input id="searchBox" type="search" placeholder="Search product…"></div>
       <div class="table-wrap"><table id="itemTable" class="table"><thead id="itemHead"></thead><tbody id="itemRows"></tbody></table></div>
@@ -74,7 +101,7 @@ const num=v=>{const n=Number(v);return Number.isFinite(n)?n:0};
 const esc=v=>clean(v).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#039;');
 const qty=v=>num(v).toLocaleString('en-US',{maximumFractionDigits:2});
 const money=v=>'$'+num(v).toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2});
-let session=null,data=null,loadingNow=false;
+let session=null,data=null,loadingNow=false,adminSelectedBatchId='',adminSelectedSalesmanKey='';
 const BB_MOBILE_STOCK_LIST=new URLSearchParams(location.search).get('mobileSkin')==='1';
 const BB_STOCK_GROUPS={
   'KIR-2L-GRP':{name:'Kirisu Milk 2L',codes:['KIR3-2L','KIRB-2L']},
@@ -205,33 +232,207 @@ function dateText(v){if(!v)return'-';const d=new Date(String(v).length===10?v+'T
 function dateTime(v){if(!v)return'-';const d=new Date(v);return Number.isNaN(d.getTime())?clean(v):d.toLocaleString('en-GB',{day:'2-digit',month:'short',hour:'2-digit',minute:'2-digit'})}
 function generatedTime(v){if(!v)return'Now';const s=clean(v);const d=new Date(s.replace(' ','T')+'+07:00');return Number.isNaN(d.getTime())?s:d.toLocaleString('en-GB',{day:'2-digit',month:'short',hour:'2-digit',minute:'2-digit'})}
 function card(label,value,sub){return `<div class="card kpi"><small>${esc(label)}</small><strong>${esc(value)}</strong><span>${esc(sub)}</span></div>`}
-function renderSummary(){const s=data?.summary||{};if(data?.isAdmin){$('summaryCards').innerHTML=card('Open Batches',Math.round(num(s.openBatchCount)).toLocaleString('en-US'),'Assigned to your Staff ID')+card('Current Qty',qty(s.currentQty),'Remaining physical stock')+card('Stock Value',money(s.stockValueUSD),'Purchased-cost value')+card('Products',Math.round(num(s.productCount)).toLocaleString('en-US'),Math.round(num(s.locationCount))+' location'+(Math.round(num(s.locationCount))===1?'':'s'));}else{$('summaryCards').innerHTML=card('Products',Math.round(num(s.productCount)).toLocaleString('en-US'),'Products currently in your care')+card('Current Qty',qty(s.currentQty),'Remaining stock responsibility')+card('Open Batches',Math.round(num(s.openBatchCount)).toLocaleString('en-US'),'Active stock responsibility')+card('Last Updated',generatedTime(data?.generatedAt),'Live stock data');}}
-function renderBatches(){const list=Array.isArray(data?.batches)?data.batches:[];$('batchRows').innerHTML=list.length?list.map(x=>`<tr><td class="batch">${esc(x.batchId)}</td><td>${esc(dateText(x.batchDate))}</td><td>${esc(x.locationName||x.locationCode)}</td><td class="num">${esc(qty(x.issuedQty))}</td><td class="num">${esc(qty(x.soldQty))}</td><td class="num">${esc(qty(x.backSaleQty))}</td><td class="num">${esc(qty(x.damagedQty))}</td><td class="num"><strong>${esc(qty(x.currentQty))}</strong></td><td class="num"><strong>${esc(money(x.stockValueUSD))}</strong></td><td><span class="pill">${esc(x.status||'Open')}</span></td></tr>`).join(''):'<tr><td colspan="10" class="empty">No open stock batch is currently assigned to this Staff ID.</td></tr>';}
-function renderItems(){
-  if(!data?.isAdmin){
-    renderMobileStaffStock();
-    return;
-  }
-  const all=Array.isArray(data?.items)?data.items:[];
-  const q=clean($('searchBox').value).toLowerCase();
-  const list=!q?all:all.filter(x=>[x.productCode,x.productName].some(v=>clean(v).toLowerCase().includes(q)));
-  $('itemCount').textContent=list.length+' item'+(list.length===1?'':'s');
+function renderSummary(){
+  const s=data?.summary||{};
   if(data?.isAdmin){
-    $('itemTable').classList.add('admin-table');
-    $('itemHead').innerHTML='<tr><th>Batch</th><th>Location</th><th>Product</th><th>Unit</th><th class="num">Assigned Qty</th><th class="num">Purchased Qty</th><th class="num">Zero Cost Qty</th><th class="num">Current Qty</th><th class="num">Avg Cost</th><th class="num">Stock Value</th><th>Last Activity</th></tr>';
-    $('itemRows').innerHTML=list.length?list.map(x=>`<tr><td class="batch">${esc(x.batchId)}</td><td>${esc(x.locationName||x.locationCode)}</td><td><strong>${esc(x.productName||x.productCode)}</strong><div class="muted">${esc(x.productCode)}</div></td><td>${esc(x.unit||'-')}</td><td class="num">${esc(qty(x.assignedQty))}</td><td class="num">${esc(qty(x.purchasedQty))}</td><td class="num">${esc(qty(x.zeroCostQty))}</td><td class="num"><strong>${esc(qty(x.currentQty))}</strong></td><td class="num">${esc(money(x.averageCostUSD))}</td><td class="num"><strong>${esc(money(x.stockValueUSD))}</strong></td><td>${esc(dateTime(x.lastActivityAt))}</td></tr>`).join(''):'<tr><td colspan="11" class="empty">No current stock matches this view.</td></tr>';
+    $('summaryCards').innerHTML=
+      card('Salesmen',Math.round(num(s.salesmanCount)).toLocaleString('en-US'),'With pending stock')+
+      card('Selected Qty',qty(s.selectedCurrentQty),'Current stock in selected batch')+
+      card('Open Batches',Math.round(num(s.openBatchCount)).toLocaleString('en-US'),'All salesman pending batches')+
+      card('Last Updated',generatedTime(data?.generatedAt),'Live stock data');
   }else{
-    $('itemTable').classList.remove('admin-table');
-    $('itemHead').innerHTML='<tr><th>Product</th><th>Unit</th><th class="num">Assigned Qty</th><th class="num">Sold Qty</th><th class="num">Damage Qty</th><th class="num">Current Qty</th><th>Last Activity</th></tr>';
-    $('itemRows').innerHTML=list.length?list.map(x=>`<tr><td><strong>${esc(x.productName||x.productCode)}</strong><div class="muted">${esc(x.productCode)}</div></td><td>${esc(x.unit||'-')}</td><td class="num">${esc(qty(x.assignedQty))}</td><td class="num">${esc(qty(x.soldQty))}</td><td class="num">${esc(qty(x.damagedQty))}</td><td class="num"><strong>${esc(qty(x.currentQty))}</strong></td><td>${esc(dateTime(x.lastActivityAt))}</td></tr>`).join(''):'<tr><td colspan="7" class="empty">No current stock is assigned to your Staff ID.</td></tr>';
+    $('summaryCards').innerHTML=
+      card('Products',Math.round(num(s.productCount)).toLocaleString('en-US'),'Products currently in your care')+
+      card('Current Qty',qty(s.currentQty),'Remaining stock responsibility')+
+      card('Open Batches',Math.round(num(s.openBatchCount)).toLocaleString('en-US'),'Active stock responsibility')+
+      card('Last Updated',generatedTime(data?.generatedAt),'Live stock data');
   }
 }
-function render(){const st=data?.staff||{};document.body.classList.toggle('bb-stock-desktop-staff',!data?.isAdmin&&!BB_MOBILE_STOCK_LIST);$('profile').textContent='👤 '+(st.staffName||'Staff')+' · '+(st.staffId||'—')+(data?.isAdmin?' · Admin full detail':' · Your stock responsibility');$('adminBatchSection').hidden=!data?.isAdmin;$('salesPrivacyNote').hidden=!!data?.isAdmin;$('searchBox').placeholder=data?.isAdmin?'Search product…':'Search product…';if(data?.isAdmin)$('batchUpdated').textContent='Updated '+(data.generatedAt||'now');renderSummary();if(data?.isAdmin)renderBatches();renderItems();$('loading').hidden=true;$('content').hidden=false;}
-async function load(showLoader=true){if(loadingNow)return;loadingNow=true;const btn=$('refreshBtn');btn.disabled=true;$('error').hidden=true;if(showLoader&& !data)$('loading').hidden=false;try{const next=await rpc('bb_sales_support_your_stock');if(!next?.success)throw new Error('Could not load Your Stock.');data=next;render();}catch(e){console.error(e);if(!data){$('loading').hidden=true;$('content').hidden=true;$('error').textContent=e?.message||String(e);$('error').hidden=false;}}finally{btn.disabled=false;loadingNow=false;}}
+function adminSalesmanKey(batch){
+  return clean(batch?.salesmanStaffId)||('NAME:'+clean(batch?.salesmanName).toLowerCase());
+}
+function renderBatches(){
+  const list=Array.isArray(data?.batches)?data.batches:[];
+  const salesmanSelect=$('adminSalesmanFilter');
+  const batchSelect=$('adminBatchFilter');
+  const info=$('adminBatchInfo');
+  if(!salesmanSelect||!batchSelect||!info)return;
+
+  if(!list.length){
+    salesmanSelect.innerHTML='<option value="">No salesman with pending stock</option>';
+    batchSelect.innerHTML='<option value="">No pending batch</option>';
+    salesmanSelect.disabled=true;
+    batchSelect.disabled=true;
+    info.innerHTML='<div class="empty" style="grid-column:1/-1">No pending salesman batch is currently open.</div>';
+    adminSelectedBatchId='';
+    adminSelectedSalesmanKey='';
+    return;
+  }
+
+  salesmanSelect.disabled=false;
+  batchSelect.disabled=false;
+
+  const selected=data?.selectedBatch||list.find(x=>clean(x.batchId)===clean(adminSelectedBatchId))||list[0];
+  const selectedKey=adminSalesmanKey(selected);
+
+  const salesmanMap=new Map();
+  list.forEach(batch=>{
+    const key=adminSalesmanKey(batch);
+    if(!salesmanMap.has(key)){
+      salesmanMap.set(key,{
+        key,
+        name:clean(batch.salesmanName)||clean(batch.salesmanStaffId)||'Unassigned',
+        staffId:clean(batch.salesmanStaffId)
+      });
+    }
+  });
+
+  if(!adminSelectedSalesmanKey||!salesmanMap.has(adminSelectedSalesmanKey)){
+    adminSelectedSalesmanKey=selectedKey||salesmanMap.keys().next().value||'';
+  }
+
+  salesmanSelect.innerHTML=[...salesmanMap.values()]
+    .sort((a,b)=>a.name.localeCompare(b.name,undefined,{sensitivity:'base'}))
+    .map(x=>`<option value="${esc(x.key)}">${esc(x.name)}${x.staffId?' · '+esc(x.staffId):''}</option>`)
+    .join('');
+  salesmanSelect.value=adminSelectedSalesmanKey;
+
+  let filtered=list.filter(x=>adminSalesmanKey(x)===adminSelectedSalesmanKey);
+  if(!filtered.length){
+    adminSelectedSalesmanKey=selectedKey;
+    salesmanSelect.value=adminSelectedSalesmanKey;
+    filtered=list.filter(x=>adminSalesmanKey(x)===adminSelectedSalesmanKey);
+  }
+
+  const requestedId=clean(adminSelectedBatchId||selected?.batchId);
+  let chosen=filtered.find(x=>clean(x.batchId)===requestedId)||filtered[0]||selected;
+  adminSelectedBatchId=clean(chosen?.batchId);
+
+  batchSelect.innerHTML=filtered.map(x=>
+    `<option value="${esc(x.batchId)}">${esc(x.batchId)} · ${esc(dateText(x.batchDate))} · ${esc(x.locationName||x.locationCode)} · ${esc(qty(x.currentQty))}</option>`
+  ).join('');
+  batchSelect.value=adminSelectedBatchId;
+
+  const liveSelected=
+    clean(data?.selectedBatch?.batchId)===adminSelectedBatchId
+      ? data.selectedBatch
+      : chosen;
+
+  info.innerHTML=
+    '<div class="admin-batch-chip"><small>Salesman</small><strong>'+esc(liveSelected?.salesmanName||liveSelected?.salesmanStaffId||'—')+'</strong></div>'+
+    '<div class="admin-batch-chip"><small>Batch</small><strong>'+esc(liveSelected?.batchId||'—')+'</strong></div>'+
+    '<div class="admin-batch-chip"><small>Location</small><strong>'+esc(liveSelected?.locationName||liveSelected?.locationCode||'—')+'</strong></div>'+
+    '<div class="admin-batch-chip"><small>Current Qty</small><strong>'+esc(qty(liveSelected?.currentQty))+'</strong></div>';
+}
+function renderItems(){
+  renderMobileStaffStock();
+}
+function render(){
+  const st=data?.staff||{};
+  const isAdmin=!!data?.isAdmin;
+  document.body.classList.toggle('bb-stock-admin-batch',isAdmin);
+  document.body.classList.toggle('bb-stock-desktop-staff',!BB_MOBILE_STOCK_LIST);
+
+  $('profile').textContent=isAdmin
+    ? '🛡 Admin · All salesman pending stock batches · select one batch to inspect'
+    : '👤 '+(st.staffName||'Staff')+' · '+(st.staffId||'—')+' · Your stock responsibility';
+
+  $('adminBatchSection').hidden=!isAdmin;
+  $('salesPrivacyNote').hidden=isAdmin;
+  $('searchBox').placeholder='Search product…';
+
+  if(isAdmin){
+    $('batchUpdated').textContent='Updated '+(data.generatedAt||'now');
+    $('itemSectionTitle').textContent=data?.selectedBatch?.batchId
+      ? 'Batch Stock · '+data.selectedBatch.batchId
+      : 'Batch Stock';
+  }else{
+    $('itemSectionTitle').textContent='Current Stock Detail';
+  }
+
+  renderSummary();
+  if(isAdmin)renderBatches();
+  renderItems();
+  $('loading').hidden=true;
+  $('content').hidden=false;
+}
+async function fetchStockData(){
+  if(data?.isAdmin&&data?.scope==='ALL_OPEN_SALESMAN_BATCHES'){
+    return rpc('bb_sales_support_admin_your_stock',{
+      p_batch_id:adminSelectedBatchId||null
+    });
+  }
+
+  const base=await rpc('bb_sales_support_your_stock');
+  if(!base?.success)throw new Error('Could not load Your Stock.');
+
+  if(base.isAdmin){
+    return rpc('bb_sales_support_admin_your_stock',{
+      p_batch_id:adminSelectedBatchId||null
+    });
+  }
+
+  return base;
+}
+async function load(showLoader=true){
+  if(loadingNow)return;
+  loadingNow=true;
+  const btn=$('refreshBtn');
+  btn.disabled=true;
+  $('error').hidden=true;
+  if(showLoader&&!data)$('loading').hidden=false;
+
+  try{
+    const next=await fetchStockData();
+    if(!next?.success)throw new Error('Could not load Your Stock.');
+    data=next;
+
+    if(data?.isAdmin){
+      const selected=data?.selectedBatch||null;
+      adminSelectedBatchId=clean(selected?.batchId)||adminSelectedBatchId;
+      if(selected){
+        const selectedKey=adminSalesmanKey(selected);
+        if(!adminSelectedSalesmanKey){
+          adminSelectedSalesmanKey=selectedKey;
+        }
+      }
+    }
+
+    render();
+  }catch(e){
+    console.error(e);
+    $('error').textContent=e?.message||String(e);
+    $('error').hidden=false;
+    if(!data){
+      $('loading').hidden=true;
+      $('content').hidden=true;
+    }
+  }finally{
+    btn.disabled=false;
+    loadingNow=false;
+  }
+}
 $('refreshBtn').onclick=()=>load(false);
 $('searchBox').oninput=renderItems;
+$('adminSalesmanFilter').onchange=()=>{
+  adminSelectedSalesmanKey=$('adminSalesmanFilter').value;
+  const list=Array.isArray(data?.batches)?data.batches:[];
+  const first=list.find(x=>adminSalesmanKey(x)===adminSelectedSalesmanKey);
+  adminSelectedBatchId=clean(first?.batchId);
+  BB_OPEN_STOCK_GROUPS.clear();
+  $('searchBox').value='';
+  load(false);
+};
+$('adminBatchFilter').onchange=()=>{
+  adminSelectedBatchId=$('adminBatchFilter').value;
+  const list=Array.isArray(data?.batches)?data.batches:[];
+  const selected=list.find(x=>clean(x.batchId)===clean(adminSelectedBatchId));
+  if(selected)adminSelectedSalesmanKey=adminSalesmanKey(selected);
+  BB_OPEN_STOCK_GROUPS.clear();
+  $('searchBox').value='';
+  load(false);
+};
 $('itemRows').addEventListener('click',e=>{
-  if(data?.isAdmin)return;
   const row=e.target.closest('tr[data-bb-group]');
   if(!row)return;
   const key=clean(row.dataset.bbGroup);
@@ -241,7 +442,7 @@ $('itemRows').addEventListener('click',e=>{
   renderItems();
 });
 $('itemRows').addEventListener('keydown',e=>{
-  if(data?.isAdmin||(e.key!=='Enter'&&e.key!==' '))return;
+  if(e.key!=='Enter'&&e.key!==' ')return;
   const row=e.target.closest('tr[data-bb-group]');
   if(!row)return;
   e.preventDefault();
