@@ -13,7 +13,7 @@ html,body{margin:0;width:100%;height:100%;overflow:hidden;background:#f4f7fb;fon
 </head>
 <body>
 <div id="boot">Loading Your Stock…</div>
-<iframe id="stockFrame" src="your-stock.html?embed=1&mobileSkin=1&v=20260923-list3" title="Your Stock"></iframe>
+<iframe id="stockFrame" src="your-stock.html?embed=1&mobileSkin=1&v=20260924-adminbatch1" title="Your Stock"></iframe>
 <script>
 (function(){
 'use strict';
@@ -175,7 +175,14 @@ function ensureListHead(){
 function staffMode(){
   const table=document.getElementById('itemTable');
   const privacy=document.getElementById('salesPrivacyNote');
-  return !!table&&!table.classList.contains('admin-table')&&!!privacy&&!privacy.hidden;
+  const adminBatch=document.body.classList.contains('bb-stock-admin-batch');
+  return !!table
+    &&!table.classList.contains('admin-table')
+    &&(
+      adminBatch
+      ||
+      (!!privacy&&!privacy.hidden)
+    );
 }
 function renderMobileItems(){
   if(!staffMode())return false;
