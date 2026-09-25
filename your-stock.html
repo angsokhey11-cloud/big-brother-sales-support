@@ -55,11 +55,32 @@ body.bb-stock-desktop-staff.bb-stock-admin-batch .summary .kpi:nth-child(2){disp
 .bb-selling-progress{display:none}
 body.bb-stock-mobile-progress .bb-selling-progress{
   display:block;
-  padding:5px 10px 6px;
+  padding:6px 10px 7px;
   margin:0;
   background:#fff;
   border-top:1px solid #edf1f5;
 }
+.bb-selling-progress-head{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:8px;
+  margin:0 0 5px;
+}
+.bb-selling-progress-title{
+  color:#173f77;
+  font-size:9px;
+  font-weight:900;
+  text-transform:uppercase;
+  letter-spacing:.25px;
+}
+.bb-selling-progress-percent{
+  color:#1768d5;
+  font-size:11px;
+  font-weight:900;
+  line-height:1;
+}
+.bb-selling-progress.complete .bb-selling-progress-percent{color:#168348}
 .bb-selling-progress-track{
   position:relative;
   height:12px;
@@ -144,6 +165,10 @@ body.bb-stock-mobile-progress .bb-selling-progress{
       <div id="salesPrivacyNote" class="privacy-note" hidden><strong>Your responsibility view:</strong> only your own pending batches and stock are shown.</div>
       <div class="toolbar"><input id="searchBox" type="search" placeholder="Search product…"></div>
       <div id="sellingProgressSection" class="bb-selling-progress" hidden>
+        <div class="bb-selling-progress-head">
+          <span class="bb-selling-progress-title">Selling Progress</span>
+          <span id="sellingProgressPercent" class="bb-selling-progress-percent">0%</span>
+        </div>
         <div id="sellingProgressTrack" class="bb-selling-progress-track" role="progressbar" aria-label="Batch selling progress" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0">
           <div id="sellingProgressFill" class="bb-selling-progress-fill"></div>
         </div>
@@ -397,7 +422,7 @@ function renderBatches(){
     return;
   }
 
-  title.textContent='My Pending Batches';
+  title.textContent='My Pending Batches ('+list.length+')';
   salesmanField.hidden=true;
   salesmanSelect.disabled=true;
 
@@ -448,6 +473,10 @@ function renderSellingProgress(){
   const assigned=Math.max(0,num(selected.issuedQty));
   const sold=Math.max(0,num(selected.soldQty));
   const target=assigned>0?Math.max(0,Math.min(100,(sold/assigned)*100)):0;
+
+  const displayPct=Math.round(target);
+  const percent=$('sellingProgressPercent');
+  if(percent)percent.textContent=displayPct+'%';
 
   const track=$('sellingProgressTrack');
   track.setAttribute('aria-valuenow',String(Math.round(target*10)/10));
