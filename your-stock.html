@@ -48,6 +48,34 @@ body.bb-stock-desktop-staff.bb-stock-admin-batch .summary .kpi:nth-child(2){disp
 .admin-batch-chip{padding:9px 10px;border:1px solid #dce5f0;border-radius:9px;background:#f8fbff}
 .admin-batch-chip small{display:block;color:#7a8a9d;font-size:8px;font-weight:900;text-transform:uppercase;letter-spacing:.25px}
 .admin-batch-chip strong{display:block;margin-top:4px;color:#173f77;font-size:11px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+
+/* Mobile salesman live selling progress.
+   The filled width is real Sold / Assigned progress.
+   Motion continues inside the bar until 100%, without faking the percentage. */
+.bb-selling-progress{display:none}
+body.bb-stock-mobile-progress .bb-selling-progress{display:block;margin:0 0 7px;border-radius:12px;overflow:hidden;box-shadow:none}
+.bb-selling-progress-head{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:10px 11px 7px}
+.bb-selling-progress-head strong{color:#173f77;font-size:12px}
+.bb-selling-progress-percent{color:#1768d5;font-size:18px;font-weight:900;line-height:1}
+.bb-selling-progress-body{padding:0 11px 10px}
+.bb-selling-progress-track{position:relative;height:18px;border:1px solid #b9d4f1;border-radius:6px;background:#eef5fc;overflow:hidden}
+.bb-selling-progress-track::after{content:'';position:absolute;inset:-1px auto -1px -35%;width:28%;background:linear-gradient(90deg,transparent,rgba(255,255,255,.72),transparent);animation:bbProgressScan 1.65s linear infinite;pointer-events:none}
+.bb-selling-progress-fill{position:absolute;inset:0 auto 0 0;width:0%;min-width:0;border-radius:5px;background:linear-gradient(90deg,#2da9df,#1d83d0);overflow:hidden;transition:width 1.15s cubic-bezier(.22,.75,.26,1)}
+.bb-selling-progress-fill::before{content:'';position:absolute;inset:0;background:repeating-linear-gradient(120deg,rgba(255,255,255,.08) 0 8px,rgba(255,255,255,.28) 8px 16px);background-size:28px 28px;animation:bbProgressFlow .85s linear infinite}
+.bb-selling-progress.complete .bb-selling-progress-track::after,
+.bb-selling-progress.complete .bb-selling-progress-fill::before{animation:none}
+.bb-selling-progress.complete .bb-selling-progress-fill{background:linear-gradient(90deg,#1b9b5b,#168348)}
+.bb-selling-progress-meaning{margin-top:6px;color:#5d7188;font-size:9.5px;font-weight:800;line-height:1.25}
+.bb-selling-progress-stats{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:5px;margin-top:8px}
+.bb-selling-progress-stat{padding:6px 7px;border:1px solid #e0e8f1;border-radius:8px;background:#f9fbfd;min-width:0}
+.bb-selling-progress-stat small{display:block;color:#7a8a9d;font-size:7px;font-weight:900;text-transform:uppercase;letter-spacing:.2px}
+.bb-selling-progress-stat strong{display:block;margin-top:2px;color:#173f77;font-size:10px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+@keyframes bbProgressFlow{from{background-position:0 0}to{background-position:28px 0}}
+@keyframes bbProgressScan{from{left:-35%}to{left:110%}}
+@media(prefers-reduced-motion:reduce){
+  .bb-selling-progress-track::after,.bb-selling-progress-fill::before{animation:none!important}
+  .bb-selling-progress-fill{transition:none!important}
+}
 @media(max-width:900px){.app{padding:16px}.summary{grid-template-columns:repeat(2,minmax(0,1fr))}.hero{flex-direction:column}.actions{width:100%}.btn{flex:1}.admin-batch-info{grid-template-columns:repeat(2,minmax(0,1fr))}}
 @media(max-width:520px){.summary{grid-template-columns:1fr}.hero h1{font-size:23px}.admin-filter-wrap{padding:9px 10px}.admin-filter-grid{grid-template-columns:1fr;gap:8px}.admin-batch-info{grid-template-columns:1fr 1fr;gap:6px;margin-top:8px}.admin-batch-chip{padding:7px 8px}}
 </style>
@@ -63,6 +91,24 @@ body.bb-stock-desktop-staff.bb-stock-admin-batch .summary .kpi:nth-child(2){disp
   <div id="loading" class="loading">Loading your live stock…</div>
   <main id="content" hidden>
     <section id="summaryCards" class="summary"></section>
+
+    <section id="sellingProgressSection" class="card bb-selling-progress" hidden>
+      <div class="bb-selling-progress-head">
+        <strong id="sellingProgressTitle">Selling Progress</strong>
+        <span id="sellingProgressPercent" class="bb-selling-progress-percent">0%</span>
+      </div>
+      <div class="bb-selling-progress-body">
+        <div id="sellingProgressTrack" class="bb-selling-progress-track" role="progressbar" aria-label="Batch selling progress" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0">
+          <div id="sellingProgressFill" class="bb-selling-progress-fill"></div>
+        </div>
+        <div id="sellingProgressMeaning" class="bb-selling-progress-meaning">Ready to start selling.</div>
+        <div class="bb-selling-progress-stats">
+          <div class="bb-selling-progress-stat"><small>Sold</small><strong id="sellingProgressSold">0</strong></div>
+          <div class="bb-selling-progress-stat"><small>Assigned</small><strong id="sellingProgressAssigned">0</strong></div>
+          <div class="bb-selling-progress-stat"><small>Current</small><strong id="sellingProgressCurrent">0</strong></div>
+        </div>
+      </div>
+    </section>
 
     <section id="adminBatchSection" class="card section" hidden>
       <div class="section-head"><strong id="batchSectionTitle">Pending Batch View</strong><span id="batchUpdated">Live</span></div>
@@ -103,6 +149,7 @@ const esc=v=>clean(v).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&
 const qty=v=>num(v).toLocaleString('en-US',{maximumFractionDigits:2});
 const money=v=>'$'+num(v).toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2});
 let session=null,data=null,loadingNow=false,adminSelectedBatchId='',adminSelectedSalesmanKey='',staffSelectedBatchId='';
+let lastSellingProgressBatchId='',lastSellingProgressPct=0,sellingProgressRaf=0;
 const BB_MOBILE_STOCK_LIST=new URLSearchParams(location.search).get('mobileSkin')==='1';
 const BB_STOCK_GROUPS={
   'KIR-2L-GRP':{name:'Kirisu Milk 2L',codes:['KIR3-2L','KIRB-2L']},
@@ -365,6 +412,68 @@ function renderBatches(){
     '<div class="admin-batch-chip"><small>Current Qty</small><strong>'+esc(qty(selected?.currentQty))+'</strong></div>'+
     '<div class="admin-batch-chip"><small>Products</small><strong>'+esc(Math.round(num(selected?.productCount)).toLocaleString('en-US'))+'</strong></div>';
 }
+function sellingProgressMeaning(pct){
+  if(pct>=100)return 'Complete 100% · this batch is fully sold.';
+  if(pct>=80)return 'Almost sold out · keep going.';
+  if(pct>=60)return 'Good selling progress.';
+  if(pct>=40)return 'Selling steadily.';
+  if(pct>=20)return 'Selling is moving.';
+  if(pct>0)return 'Selling started.';
+  return 'Ready to start selling.';
+}
+function renderSellingProgress(){
+  const section=$('sellingProgressSection');
+  if(!section)return;
+
+  const show=BB_MOBILE_STOCK_LIST&&!data?.isAdmin;
+  document.body.classList.toggle('bb-stock-mobile-progress',show);
+  section.hidden=!show;
+  if(!show)return;
+
+  const selected=data?.selectedBatch||null;
+  if(!selected){
+    section.hidden=true;
+    return;
+  }
+
+  const batchId=clean(selected.batchId);
+  const assigned=Math.max(0,num(selected.issuedQty));
+  const sold=Math.max(0,num(selected.soldQty));
+  const current=Math.max(0,num(selected.currentQty));
+  const target=assigned>0?Math.max(0,Math.min(100,(sold/assigned)*100)):0;
+  const displayPct=Math.round(target);
+
+  $('sellingProgressTitle').textContent='Selling Progress · '+(batchId||'Batch');
+  $('sellingProgressPercent').textContent=displayPct+'%';
+  $('sellingProgressMeaning').textContent=sellingProgressMeaning(target);
+  $('sellingProgressSold').textContent=qty(sold);
+  $('sellingProgressAssigned').textContent=qty(assigned);
+  $('sellingProgressCurrent').textContent=qty(current);
+
+  const track=$('sellingProgressTrack');
+  track.setAttribute('aria-valuenow',String(Math.round(target*10)/10));
+  track.setAttribute('aria-valuetext',displayPct+' percent sold');
+
+  const fill=$('sellingProgressFill');
+  const sameBatch=batchId&&batchId===lastSellingProgressBatchId;
+  const start=sameBatch?lastSellingProgressPct:0;
+
+  section.classList.toggle('complete',target>=99.999);
+
+  cancelAnimationFrame(sellingProgressRaf);
+  fill.style.width=Math.max(0,Math.min(100,start))+'%';
+
+  // New batch opens like a download: start at 0 and run to its true live value.
+  // Same batch refreshes from its last known value to the new live value.
+  sellingProgressRaf=requestAnimationFrame(()=>{
+    sellingProgressRaf=requestAnimationFrame(()=>{
+      fill.style.width=target+'%';
+    });
+  });
+
+  lastSellingProgressBatchId=batchId;
+  lastSellingProgressPct=target;
+}
 function renderItems(){
   renderMobileStaffStock();
 }
@@ -390,6 +499,7 @@ function render(){
 
   renderSummary();
   renderBatches();
+  renderSellingProgress();
   renderItems();
   $('loading').hidden=true;
   $('content').hidden=false;
