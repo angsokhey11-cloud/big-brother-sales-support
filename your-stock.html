@@ -175,12 +175,15 @@ body.bb-stock-mobile-progress .bb-mobile-batch-picker{display:block}
    Only the animated bar is visible to save screen space.
    Filled width is the real Sold / Assigned percentage. */
 .bb-selling-progress{display:none}
-body.bb-stock-mobile-progress .bb-selling-progress{
+body.bb-stock-selling-progress .bb-selling-progress{
   display:block;
-  padding:6px 10px 7px;
+  padding:8px 12px 9px;
   margin:0;
   background:#fff;
   border-top:1px solid #edf1f5;
+}
+body.bb-stock-mobile-progress .bb-selling-progress{
+  padding:6px 10px 7px;
 }
 .bb-selling-progress-head{
   display:flex;
@@ -222,7 +225,7 @@ body.bb-stock-mobile-progress .bb-selling-progress{
 .bb-selling-progress.complete .bb-selling-progress-percent{color:#168348}
 .bb-selling-progress-track{
   position:relative;
-  height:12px;
+  height:14px;
   border:1px solid #b9d4f1;
   border-radius:5px;
   background:#eef5fc;
@@ -266,6 +269,7 @@ body.bb-stock-mobile-progress .bb-selling-progress{
   .bb-selling-progress-track::after,.bb-selling-progress-fill::before{animation:none!important}
   .bb-selling-progress-fill{transition:none!important}
 }
+body.bb-stock-mobile-progress .bb-selling-progress-track{height:12px}
 @media(max-width:900px){.app{padding:16px}.summary{grid-template-columns:repeat(2,minmax(0,1fr))}.hero{flex-direction:column}.actions{width:100%}.btn{flex:1}.admin-batch-info{grid-template-columns:repeat(2,minmax(0,1fr))}}
 @media(max-width:520px){.summary{grid-template-columns:1fr}.hero h1{font-size:23px}.admin-filter-wrap{padding:9px 10px}.admin-filter-grid{grid-template-columns:1fr;gap:8px}.admin-batch-info{grid-template-columns:1fr 1fr;gap:6px;margin-top:8px}.admin-batch-chip{padding:7px 8px}}
 </style>
@@ -608,7 +612,7 @@ function renderBatches(){
     adminSelectedBatchId=clean(chosen?.batchId);
 
     batchSelect.innerHTML=filtered.map(x=>
-      `<option value="${esc(x.batchId)}">${esc(x.batchId)} · ${esc(dateText(x.batchDate))} · ${esc(qty(x.currentQty))}</option>`
+      `<option value="${esc(x.batchId)}">${esc(x.batchId)} · ${esc(mobileBatchLocation(x))} · ${esc(dateText(x.batchDate))} · Current ${esc(qty(x.currentQty))}</option>`
     ).join('');
     batchSelect.value=adminSelectedBatchId;
 
@@ -672,12 +676,14 @@ function renderSellingProgress(){
   const section=$('sellingProgressSection');
   if(!section)return;
 
-  const show=BB_MOBILE_STOCK_LIST&&!data?.isAdmin;
-  document.body.classList.toggle('bb-stock-mobile-progress',show);
-  section.hidden=!show;
-  if(!show)return;
-
   const selected=data?.selectedBatch||null;
+  const mobileSalesman=BB_MOBILE_STOCK_LIST&&!data?.isAdmin;
+  const show=!!selected;
+
+  document.body.classList.toggle('bb-stock-mobile-progress',mobileSalesman);
+  document.body.classList.toggle('bb-stock-selling-progress',show);
+  section.hidden=!show;
+
   if(!selected){
     section.hidden=true;
     return;
