@@ -44,6 +44,128 @@ body.bb-stock-desktop-staff.bb-stock-admin-batch .summary .kpi:nth-child(2){disp
 .admin-filter-field select{width:100%;min-height:40px;border:1px solid #cfd8e5;border-radius:9px;background:#fff;color:#173f77;padding:8px 10px;font:inherit;font-size:12px;font-weight:800}
 .admin-filter-field select:disabled{background:#f3f6f9;color:#8996a6}
 #salesmanFilterField[hidden]+.admin-filter-field{grid-column:1/-1}
+
+/* Compact custom batch picker for salesman mobile.
+   Avoids the oversized native phone select and shows useful batch context. */
+.bb-mobile-batch-picker{display:none;position:relative}
+body.bb-stock-mobile-progress #adminBatchFilter{display:none}
+body.bb-stock-mobile-progress .bb-mobile-batch-picker{display:block}
+.bb-mobile-batch-button{
+  width:100%;
+  min-height:46px;
+  border:1px solid #cfd8e5;
+  border-radius:9px;
+  background:#fff;
+  padding:7px 10px;
+  display:grid;
+  grid-template-columns:minmax(0,1fr) auto;
+  grid-template-areas:'main arrow' 'meta arrow';
+  column-gap:8px;
+  text-align:left;
+  color:#173f77;
+  font:inherit;
+}
+.bb-mobile-batch-main{
+  grid-area:main;
+  min-width:0;
+  display:flex;
+  align-items:center;
+  gap:6px;
+  font-size:11px;
+  font-weight:900;
+  line-height:1.15;
+}
+.bb-mobile-batch-main strong{
+  flex:0 0 auto;
+  font-size:11px;
+}
+.bb-mobile-batch-location{
+  min-width:0;
+  overflow:hidden;
+  text-overflow:ellipsis;
+  white-space:nowrap;
+  color:#2f6fed;
+  font-size:9.5px;
+  font-weight:800;
+}
+.bb-mobile-batch-meta{
+  grid-area:meta;
+  min-width:0;
+  margin-top:3px;
+  color:#738397;
+  font-size:8.5px;
+  font-weight:800;
+  line-height:1.1;
+  white-space:nowrap;
+  overflow:hidden;
+  text-overflow:ellipsis;
+}
+.bb-mobile-batch-arrow{
+  grid-area:arrow;
+  align-self:center;
+  color:#5e7187;
+  font-size:13px;
+  transition:transform .16s ease;
+}
+.bb-mobile-batch-picker.open .bb-mobile-batch-arrow{transform:rotate(180deg)}
+.bb-mobile-batch-menu{
+  position:absolute;
+  z-index:250;
+  left:0;
+  right:0;
+  top:calc(100% + 5px);
+  max-height:190px;
+  overflow:auto;
+  padding:4px;
+  border:1px solid #cfd8e5;
+  border-radius:10px;
+  background:#fff;
+  box-shadow:0 10px 24px rgba(23,63,119,.16);
+}
+.bb-mobile-batch-menu[hidden]{display:none}
+.bb-mobile-batch-option{
+  width:100%;
+  min-height:48px;
+  border:0;
+  border-bottom:1px solid #edf1f5;
+  border-radius:7px;
+  background:#fff;
+  padding:7px 8px;
+  text-align:left;
+  color:#173f77;
+  font:inherit;
+}
+.bb-mobile-batch-option:last-child{border-bottom:0}
+.bb-mobile-batch-option.selected{background:#eef6ff}
+.bb-mobile-batch-option-top{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:8px;
+}
+.bb-mobile-batch-option strong{
+  font-size:10.5px;
+  line-height:1.15;
+}
+.bb-mobile-batch-option-location{
+  min-width:0;
+  max-width:58%;
+  overflow:hidden;
+  text-overflow:ellipsis;
+  white-space:nowrap;
+  color:#2f6fed;
+  font-size:9px;
+  font-weight:900;
+  text-align:right;
+}
+.bb-mobile-batch-option-meta{
+  margin-top:4px;
+  color:#738397;
+  font-size:8.5px;
+  font-weight:800;
+  line-height:1.1;
+}
+
 .admin-batch-info{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px;margin-top:12px}
 .admin-batch-chip{padding:9px 10px;border:1px solid #dce5f0;border-radius:9px;background:#f8fbff}
 .admin-batch-chip small{display:block;color:#7a8a9d;font-size:8px;font-weight:900;text-transform:uppercase;letter-spacing:.25px}
@@ -171,6 +293,14 @@ body.bb-stock-mobile-progress .bb-selling-progress{
           <div class="admin-filter-field">
             <label for="adminBatchFilter">Pending Batch</label>
             <select id="adminBatchFilter"></select>
+            <div id="mobileBatchPicker" class="bb-mobile-batch-picker">
+              <button id="mobileBatchPickerButton" class="bb-mobile-batch-button" type="button" aria-haspopup="listbox" aria-expanded="false">
+                <span class="bb-mobile-batch-main"><strong id="mobileBatchId">No batch</strong><span id="mobileBatchLocation" class="bb-mobile-batch-location"></span></span>
+                <span id="mobileBatchMeta" class="bb-mobile-batch-meta"></span>
+                <span class="bb-mobile-batch-arrow" aria-hidden="true">⌄</span>
+              </button>
+              <div id="mobileBatchPickerMenu" class="bb-mobile-batch-menu" role="listbox" hidden></div>
+            </div>
           </div>
         </div>
         <div id="adminBatchInfo" class="admin-batch-info"></div>
@@ -361,6 +491,59 @@ function renderSummary(){
 function adminSalesmanKey(batch){
   return clean(batch?.salesmanStaffId)||('NAME:'+clean(batch?.salesmanName).toLowerCase());
 }
+function mobileBatchLocation(batch){
+  return clean(batch?.locationName)||clean(batch?.locationCode)||'No location';
+}
+function renderMobileBatchPicker(list,selected){
+  const picker=$('mobileBatchPicker');
+  const button=$('mobileBatchPickerButton');
+  const menu=$('mobileBatchPickerMenu');
+  if(!picker||!button||!menu)return;
+
+  if(data?.isAdmin||!BB_MOBILE_STOCK_LIST){
+    picker.classList.remove('open');
+    menu.hidden=true;
+    button.setAttribute('aria-expanded','false');
+    return;
+  }
+
+  if(!selected||!list.length){
+    $('mobileBatchId').textContent='No pending batch';
+    $('mobileBatchLocation').textContent='';
+    $('mobileBatchMeta').textContent='';
+    menu.innerHTML='';
+    button.disabled=true;
+    return;
+  }
+
+  button.disabled=false;
+  $('mobileBatchId').textContent=clean(selected.batchId)||'Batch';
+  $('mobileBatchLocation').textContent=mobileBatchLocation(selected);
+  $('mobileBatchMeta').textContent=
+    dateText(selected.batchDate)+' · Current '+qty(selected.currentQty);
+
+  menu.innerHTML=list.map(batch=>{
+    const id=clean(batch.batchId);
+    const active=id===clean(selected.batchId);
+    return '<button type="button" class="bb-mobile-batch-option'+(active?' selected':'')+'" role="option" aria-selected="'+(active?'true':'false')+'" data-batch-id="'+esc(id)+'">'+
+      '<span class="bb-mobile-batch-option-top">'+
+        '<strong>'+esc(id)+'</strong>'+
+        '<span class="bb-mobile-batch-option-location">'+esc(mobileBatchLocation(batch))+'</span>'+
+      '</span>'+
+      '<span class="bb-mobile-batch-option-meta">'+
+        esc(dateText(batch.batchDate))+' · Current '+esc(qty(batch.currentQty))+
+      '</span>'+
+    '</button>';
+  }).join('');
+}
+function closeMobileBatchPicker(){
+  const picker=$('mobileBatchPicker');
+  const button=$('mobileBatchPickerButton');
+  const menu=$('mobileBatchPickerMenu');
+  if(picker)picker.classList.remove('open');
+  if(menu)menu.hidden=true;
+  if(button)button.setAttribute('aria-expanded','false');
+}
 function renderBatches(){
   const list=Array.isArray(data?.batches)?data.batches:[];
   const salesmanSelect=$('adminSalesmanFilter');
@@ -451,6 +634,7 @@ function renderBatches(){
     batchSelect.disabled=true;
     info.innerHTML='<div class="empty" style="grid-column:1/-1">You do not have any pending stock batch.</div>';
     staffSelectedBatchId='';
+    renderMobileBatchPicker([],null);
     return;
   }
 
@@ -464,9 +648,10 @@ function renderBatches(){
   staffSelectedBatchId=clean(selected?.batchId);
 
   batchSelect.innerHTML=list.map(x=>
-    `<option value="${esc(x.batchId)}">${esc(x.batchId)} · ${esc(dateText(x.batchDate))} · ${esc(qty(x.currentQty))}</option>`
+    `<option value="${esc(x.batchId)}">${esc(x.batchId)} · ${esc(mobileBatchLocation(x))} · ${esc(dateText(x.batchDate))} · ${esc(qty(x.currentQty))}</option>`
   ).join('');
   batchSelect.value=staffSelectedBatchId;
+  renderMobileBatchPicker(list,selected);
 
   info.innerHTML=
     '<div class="admin-batch-chip"><small>Batch</small><strong>'+esc(selected?.batchId||'—')+'</strong></div>'+
@@ -637,6 +822,35 @@ $('adminSalesmanFilter').onchange=()=>{
   $('searchBox').value='';
   load(false);
 };
+$('mobileBatchPickerButton').onclick=()=>{
+  if(data?.isAdmin||!BB_MOBILE_STOCK_LIST)return;
+  const picker=$('mobileBatchPicker');
+  const menu=$('mobileBatchPickerMenu');
+  const open=!menu.hidden;
+  if(open){
+    closeMobileBatchPicker();
+  }else{
+    picker.classList.add('open');
+    menu.hidden=false;
+    $('mobileBatchPickerButton').setAttribute('aria-expanded','true');
+  }
+};
+$('mobileBatchPickerMenu').onclick=e=>{
+  const option=e.target.closest('.bb-mobile-batch-option[data-batch-id]');
+  if(!option)return;
+  const id=clean(option.dataset.batchId);
+  if(!id)return;
+  staffSelectedBatchId=id;
+  $('adminBatchFilter').value=id;
+  closeMobileBatchPicker();
+  BB_OPEN_STOCK_GROUPS.clear();
+  $('searchBox').value='';
+  load(false);
+};
+document.addEventListener('click',e=>{
+  const picker=$('mobileBatchPicker');
+  if(picker&&!picker.contains(e.target))closeMobileBatchPicker();
+});
 $('adminBatchFilter').onchange=()=>{
   const id=$('adminBatchFilter').value;
 
@@ -649,6 +863,7 @@ $('adminBatchFilter').onchange=()=>{
     staffSelectedBatchId=id;
   }
 
+  closeMobileBatchPicker();
   BB_OPEN_STOCK_GROUPS.clear();
   $('searchBox').value='';
   load(false);
