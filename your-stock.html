@@ -33,12 +33,15 @@ body.bb-stock-desktop-staff #itemRows td:nth-child(2){color:var(--navy);font-wei
 body.bb-stock-desktop-staff #itemRows td:nth-child(3){color:#13824d;font-weight:900}
 body.bb-stock-desktop-staff #itemRows td:nth-child(4){color:#c17718;font-weight:900}
 body.bb-stock-desktop-staff #itemRows td:nth-child(5){color:var(--green);font-weight:900}
-body.bb-stock-desktop-staff #itemRows td:nth-child(6){color:#c93c46;font-weight:900}
-body.bb-stock-desktop-staff #itemRows td:nth-child(7){color:var(--blue);font-weight:900}
-body.bb-stock-desktop-staff #itemTable{min-width:1080px}
+body.bb-stock-desktop-staff #itemRows td:nth-child(6){color:#b57522;font-weight:900}
+body.bb-stock-desktop-staff #itemRows td:nth-child(7){color:#c93c46;font-weight:900}
+body.bb-stock-desktop-staff #itemRows td:nth-child(8){color:var(--blue);font-weight:900}
+body.bb-stock-desktop-staff #itemTable{min-width:1200px}
 .bb-adjusted-zero{display:block;font-size:9px;font-weight:750;color:#a87532;margin-top:3px;white-space:normal}
 #itemHead th:nth-child(3){color:#18864b}
 #itemHead th:nth-child(4){color:#bf6d14}
+#itemHead th:nth-child(6){color:#b57522}
+#itemHead th:nth-child(7){color:#c93c46}
 
 .bb-adjust-history{margin:12px 14px 16px;border:1px solid #d4e2f0;border-radius:10px;background:#f8fbff;overflow:hidden}
 .bb-adjust-history>summary{cursor:pointer;padding:12px 13px;color:#173f77;font-weight:850;font-size:12px;list-style-position:inside}
@@ -420,7 +423,8 @@ function bbMobileStockRow(cls,name,row,unit,attrs=''){
     <td class="num bb-adj-in">${bbQtyUnit(row.adjustmentInQty,unit)}</td>
     <td class="num bb-adj-out">${bbQtyUnit(row.adjustmentOutQty,unit)}</td>
     <td class="num">${bbQtyUnit(row.soldQty,unit)}</td>
-    <td class="num">${bbQtyUnit(row.damagedQty,unit)}</td>
+    <td class="num bb-damage-return">${bbQtyUnit(row.damageReturnQty,unit)}</td>
+    <td class="num bb-current-damage">${bbQtyUnit(row.currentDamageQty,unit)}</td>
     <td class="num"><strong>${bbQtyUnit(row.currentQty,unit)}</strong></td>
   </tr>`;
 }
@@ -433,7 +437,7 @@ function renderMobileStaffStock(){
   let shown=0;
 
   $('itemTable').classList.remove('admin-table');
-  $('itemHead').innerHTML='<tr class="bb-mobile-stock-head"><th>Name</th><th class="num">Assign QTY</th><th class="num">Adjustment IN</th><th class="num">Adjustment OUT</th><th class="num">Sold QTY</th><th class="num">Damage QTY</th><th class="num">Current QTY</th></tr>';
+  $('itemHead').innerHTML='<tr class="bb-mobile-stock-head"><th>Name</th><th class="num">Assign QTY</th><th class="num">Adjustment IN</th><th class="num">Adjustment OUT</th><th class="num">Sold QTY</th><th class="num">Damage Return</th><th class="num">Current Damage</th><th class="num">Current QTY</th></tr>';
 
   for(const spec of BB_STOCK_ORDER){
     if(spec.kind==='group'){
@@ -454,6 +458,8 @@ function renderMobileStaffStock(){
         adjustmentOutQty:bbSumRows(members,'adjustmentOutQty'),
         soldQty:bbSumRows(members,'soldQty'),
         damagedQty:bbSumRows(members,'damagedQty'),
+        damageReturnQty:bbSumRows(members,'damageReturnQty'),
+        currentDamageQty:bbSumRows(members,'currentDamageQty'),
         currentQty:bbSumRows(members,'currentQty')
       };
       const open=!!q||BB_OPEN_STOCK_GROUPS.has(spec.key);
@@ -500,7 +506,7 @@ function renderMobileStaffStock(){
     shown++;
   }
 
-  $('itemRows').innerHTML=html||'<tr class="bb-empty-row"><td colspan="7" class="empty">No current stock matches this view.</td></tr>';
+  $('itemRows').innerHTML=html||'<tr class="bb-empty-row"><td colspan="8" class="empty">No current stock matches this view.</td></tr>';
   $('itemCount').textContent=shown+' line'+(shown===1?'':'s');
 }
 function readSession(){try{return JSON.parse(localStorage.getItem(SESSION_KEY)||'null')}catch(_){return null}}
@@ -844,6 +850,15 @@ async function bbAddBatchAdjustmentColumns(report){
   if(!response?.success||response.batchId!==report.selectedBatch.batchId||
      !Array.isArray(response.items))throw new Error('Batch adjustment details could not be loaded.');
   const totals=new Map(response.items.map(item=>[clean(item.productCode),item]));
+  const damageReturns=new Map((Array.isArray(response.damageReturns)?response.damageReturns:[])
+    .map(item=>[clean(item.productCode),num(item.damageReturnQty)]));
+  function withDamage(item){
+    const returned=damageReturns.get(clean(item.productCode))||0;
+    // Batch Damage key-in is warehouse receipt under this workflow.
+    // Presentation only: do not subtract it from current sellable stock again.
+    return {...item,damageReturnQty:returned,
+      currentDamageQty:Math.max(0,num(item.damagedQty)-returned)};
+  }
   report.adjustmentHistory=Array.isArray(response.history)?response.history:[];
   report.adjustmentSummary={
     inQty:response.items.reduce((sum,x)=>sum+num(x.adjustmentInQty),0),
@@ -851,9 +866,9 @@ async function bbAddBatchAdjustmentColumns(report){
   };
   report.items=report.items.map(item=>{
     const adjustment=totals.get(clean(item.productCode))||{};
-    return {...item,adjustmentInQty:num(adjustment.adjustmentInQty),
+    return withDamage({...item,adjustmentInQty:num(adjustment.adjustmentInQty),
       adjustmentOutQty:num(adjustment.adjustmentOutQty),
-      lastAdjustmentAt:adjustment.lastAdjustmentAt||null};
+      lastAdjustmentAt:adjustment.lastAdjustmentAt||null});
   });
   // Preserve the usual live-stock list, but also show corrected products
   // whose pending stock reached zero (including fully removed batch lines).
@@ -862,7 +877,7 @@ async function bbAddBatchAdjustmentColumns(report){
     const code=clean(correction.productCode);
     if(!code||visibleCodes.has(code)||
        num(correction.adjustmentInQty)+num(correction.adjustmentOutQty)<=0)continue;
-    report.items.push({
+    report.items.push(withDamage({
       batchId:report.selectedBatch.batchId,productCode:code,
       productName:correction.productName||code,unit:correction.unit||'',
       assignedQty:num(correction.assignedQty),soldQty:num(correction.soldQty),
@@ -870,7 +885,7 @@ async function bbAddBatchAdjustmentColumns(report){
       adjustmentInQty:num(correction.adjustmentInQty),
       adjustmentOutQty:num(correction.adjustmentOutQty),
       lastAdjustmentAt:correction.lastAdjustmentAt||null,adjustmentOnly:true
-    });
+    }));
     visibleCodes.add(code);
   }
   return report;
