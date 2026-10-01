@@ -36,6 +36,7 @@ body.bb-stock-desktop-staff #itemRows td:nth-child(5){color:var(--green);font-we
 body.bb-stock-desktop-staff #itemRows td:nth-child(6){color:#c93c46;font-weight:900}
 body.bb-stock-desktop-staff #itemRows td:nth-child(7){color:var(--blue);font-weight:900}
 body.bb-stock-desktop-staff #itemTable{min-width:1080px}
+.bb-adjusted-zero{display:block;font-size:9px;font-weight:750;color:#a87532;margin-top:3px;white-space:normal}
 #itemHead th:nth-child(3){color:#18864b}
 #itemHead th:nth-child(4){color:#bf6d14}
 
@@ -412,6 +413,7 @@ function bbOriginalAssigned(row){
   return Math.max(0,num(row?.assignedQty)-num(row?.adjustmentInQty)+num(row?.adjustmentOutQty));
 }
 function bbMobileStockRow(cls,name,row,unit,attrs=''){
+  if(row?.adjustmentOnly)name+='<small class="bb-adjusted-zero">Adjusted · 0 current stock</small>';
   return `<tr class="${cls}" ${attrs}>
     <td>${name}</td>
     <td class="num">${bbQtyUnit(bbOriginalAssigned(row),unit)}</td>
@@ -853,6 +855,24 @@ async function bbAddBatchAdjustmentColumns(report){
       adjustmentOutQty:num(adjustment.adjustmentOutQty),
       lastAdjustmentAt:adjustment.lastAdjustmentAt||null};
   });
+  // Preserve the usual live-stock list, but also show corrected products
+  // whose pending stock reached zero (including fully removed batch lines).
+  const visibleCodes=new Set(report.items.map(item=>clean(item.productCode)));
+  for(const correction of response.items){
+    const code=clean(correction.productCode);
+    if(!code||visibleCodes.has(code)||
+       num(correction.adjustmentInQty)+num(correction.adjustmentOutQty)<=0)continue;
+    report.items.push({
+      batchId:report.selectedBatch.batchId,productCode:code,
+      productName:correction.productName||code,unit:correction.unit||'',
+      assignedQty:num(correction.assignedQty),soldQty:num(correction.soldQty),
+      damagedQty:num(correction.damagedQty),currentQty:0,
+      adjustmentInQty:num(correction.adjustmentInQty),
+      adjustmentOutQty:num(correction.adjustmentOutQty),
+      lastAdjustmentAt:correction.lastAdjustmentAt||null,adjustmentOnly:true
+    });
+    visibleCodes.add(code);
+  }
   return report;
 }
 async function load(showLoader=true){
