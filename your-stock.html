@@ -419,6 +419,7 @@ function bbOriginalAssigned(row){
 }
 function bbMobileStockRow(cls,name,row,unit,attrs=''){
   if(row?.adjustmentOnly)name+='<small class="bb-adjusted-zero">Adjusted · 0 current stock</small>';
+  else if(row?.damageOnly)name+='<small class="bb-adjusted-zero">'+(num(row.currentDamageQty)>0?'Damaged · waiting for warehouse':'Damaged · returned to warehouse')+'</small>';
   return `<tr class="${cls}" ${attrs}>
     <td>${name}</td>
     <td class="num">${bbQtyUnit(bbOriginalAssigned(row),unit)}</td>
@@ -887,6 +888,28 @@ async function bbAddBatchAdjustmentColumns(report){
       adjustmentInQty:num(correction.adjustmentInQty),
       adjustmentOutQty:num(correction.adjustmentOutQty),
       lastAdjustmentAt:correction.lastAdjustmentAt||null,adjustmentOnly:true
+    }));
+    visibleCodes.add(code);
+  }
+  // A fully damaged product can have zero sellable stock. Preserve its
+  // received/pending damage line in this report for warehouse transparency.
+  const damageDetails=new Map();
+  for(const row of [...(Array.isArray(response.damageReturns)?response.damageReturns:[]),
+                    ...(Array.isArray(response.damagePending)?response.damagePending:[])]){
+    const code=clean(row.productCode);
+    if(code)damageDetails.set(code,{...(damageDetails.get(code)||{}),...row});
+  }
+  for(const [code,line] of damageDetails){
+    if(visibleCodes.has(code))continue;
+    const adjustment=totals.get(code)||{};
+    report.items.push(withDamage({
+      batchId:report.selectedBatch.batchId,productCode:code,
+      productName:line.productName||code,unit:line.unit||'',
+      assignedQty:num(line.assignedQty),soldQty:num(line.soldQty),
+      damagedQty:num(line.damagedQty),currentQty:num(line.currentQty),
+      adjustmentInQty:num(adjustment.adjustmentInQty),
+      adjustmentOutQty:num(adjustment.adjustmentOutQty),
+      damageOnly:true
     }));
     visibleCodes.add(code);
   }
