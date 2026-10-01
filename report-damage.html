@@ -7,21 +7,21 @@ body{margin:0;padding:16px}.page{max-width:950px;margin:auto}.card{background:wh
 h1{font-size:23px;margin:5px 0}h2{font-size:16px;margin:0 0 12px}.muted,small{color:#64778d}
 label{display:block;font-size:12px;font-weight:bold;margin:12px 0 6px}
 select,input,textarea{font:inherit;padding:10px;border:1px solid #bdcede;border-radius:9px;width:100%;background:white;color:#173f77}
-textarea{min-height:65px}.line{display:grid;grid-template-columns:minmax(150px,1fr) 120px 104px;gap:10px;align-items:center;padding:9px 0;border-bottom:1px solid #eaf0f7}
+textarea{min-height:65px}.line{display:grid;grid-template-columns:minmax(150px,1fr) 90px 100px 104px;gap:10px;align-items:center;padding:9px 0;border-bottom:1px solid #eaf0f7}
 .line:last-child{border:0}.line strong{display:block;font-size:13px}.line small{display:block;font-size:11px;margin-top:4px}
 button,.action{background:#17457a;color:white;border:0;border-radius:9px;padding:11px 14px;font-weight:800;cursor:pointer;text-decoration:none;display:inline-block}
 button:disabled{opacity:.6;cursor:wait}.actions{display:flex;gap:9px;align-items:center;flex-wrap:wrap;margin-top:15px}
 .info{padding:11px;border:1px solid #cee0f2;background:#eef6ff;border-radius:9px;font-size:12px;line-height:1.5}
 #status.error{background:#fff0ee;color:#ad3434;border-color:#eec8c1}#status.ok{background:#eef9f0;color:#19613f;border-color:#b7dcc7}
 .name{font-size:13px}.num{text-align:right}.reported{font-size:12px;font-weight:900;color:#aa7125}
-@media(max-width:500px){body{padding:8px}.card{padding:12px}.line{grid-template-columns:minmax(105px,1fr) 75px 82px;gap:5px}.line strong{font-size:11px}.line small{font-size:9px}.line input{padding:7px 5px;font-size:12px}}
+@media(max-width:500px){body{padding:8px}.card{padding:12px}.line{grid-template-columns:minmax(95px,1fr) 54px 61px 68px;gap:5px}.line strong{font-size:11px}.line small{font-size:9px}.line input{padding:7px 5px;font-size:12px}}
 </style></head><body><div class="page">
 <header><a class="action" href="your-stock.html?v=20261001-damage-report1">← Your Stock</a><h1>Report Damage</h1><p class="muted">Salesman reports damage immediately. Warehouse confirms the physical return later using Batch Damage Key-in.</p></header>
 <div id="status" class="info">Connecting to your assigned batches…</div>
 <section class="card"><label for="batch">Your Pending Batch</label><select id="batch" disabled><option>Loading…</option></select>
 <div id="context" class="info" style="margin-top:10px" hidden></div></section>
 <section class="card"><h2>Damaged products still with you</h2><div class="info">Enter newly discovered damaged quantities only. Reporting them deducts sellable batch stock once. Do not enter damage that was already reported.</div>
-<div class="line muted" style="font-weight:800;font-size:11px"><span>Product</span><span class="num">Good QTY</span><span class="num">Report QTY</span></div>
+<div class="line muted" style="font-weight:800;font-size:11px"><span>Product</span><span class="num">Good QTY</span><span class="num">Current Damage</span><span class="num">Report QTY</span></div>
 <div id="products"><p class="muted">Select a batch.</p></div>
 <label for="note">Note (optional)</label><textarea id="note" maxlength="300" placeholder="Optional damage details"></textarea>
 <div class="actions"><button type="button" id="submit" disabled>Submit Damage Report</button><button type="button" id="refresh">Refresh</button></div></section>
@@ -66,8 +66,9 @@ async function display(batchId){
  const [result,damaged]=await Promise.all([rpc('bb_sales_support_my_stock',{p_batch_id:batchId}),rpc('bb_batch_damage_pending',{p_batch_id:batchId})]);
  if(result.selectedBatch?.batchId!==batchId)throw Error('This batch is no longer assigned/open.');
  items=Array.isArray(result.items)?result.items:[];
+ const currentDamage=new Map((damaged.items||[]).map(x=>[String(x.productCode||''),num(x.currentDamageQty)]));
  $('context').hidden=false;$('context').textContent=(damaged.salesmanName||'')+' · '+(damaged.locationName||'');
- $('products').innerHTML=items.map((p,i)=>'<div class="line"><div class="name"><strong>'+esc(p.productName||p.productCode)+'</strong><small>'+esc(p.productCode)+'</small></div><div class="reported num">'+num(p.currentQty).toLocaleString('en-US')+'</div><input data-i="'+i+'" type="number" inputmode="decimal" min="0" step="0.0001" max="'+num(p.currentQty)+'" value="" placeholder="0" aria-label="Damage quantity for '+esc(p.productName||p.productCode)+'"></div>').join('')||'<p class="muted">No remaining sellable products for this batch.</p>';
+ $('products').innerHTML=items.map((p,i)=>'<div class="line"><div class="name"><strong>'+esc(p.productName||p.productCode)+'</strong><small>'+esc(p.productCode)+'</small></div><div class="reported num">'+num(p.currentQty).toLocaleString('en-US')+'</div><div class="reported num" title="Previously reported damage awaiting warehouse return">'+num(currentDamage.get(String(p.productCode||''))).toLocaleString('en-US')+'</div><input data-i="'+i+'" type="number" inputmode="decimal" min="0" step="0.0001" max="'+num(p.currentQty)+'" value="" placeholder="0" aria-label="Damage quantity for '+esc(p.productName||p.productCode)+'"></div>').join('')||'<p class="muted">No remaining sellable products for this batch.</p>';
  const rows=damaged.items||[];
  $('pending').innerHTML=rows.length?rows.map(x=>'<div class="line"><strong>'+esc(x.productName||x.productCode)+'</strong><span class="muted">Reported '+num(x.reportedQty)+'</span><strong class="reported num">Awaiting '+num(x.currentDamageQty)+'</strong></div>').join(''):'No damage awaiting warehouse return.';
  $('submit').disabled=!items.length;
