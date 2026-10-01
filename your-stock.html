@@ -846,7 +846,7 @@ async function fetchStockData(){
   });
 }
 async function bbAddBatchAdjustmentColumns(report){
-  if(!report?.selectedBatch?.batchId||!Array.isArray(report.items)||!report.items.length)return report;
+  if(!report?.selectedBatch?.batchId||!Array.isArray(report.items))return report;
   const response=await rpc('bb_sales_support_batch_adjustment_totals',{
     p_batch_id:report.selectedBatch.batchId
   });
