@@ -13,7 +13,7 @@ html,body{margin:0;width:100%;height:100%;overflow:hidden;background:#f4f7fb;fon
 </head>
 <body>
 <div id="boot">Loading Your Stock…</div>
-<iframe id="stockFrame" src="your-stock.html?embed=1&mobileSkin=1&v=20261001-stockadjustcols4" title="Your Stock"></iframe>
+<iframe id="stockFrame" src="your-stock.html?embed=1&mobileSkin=1&v=20261001-damagereturn1" title="Your Stock"></iframe>
 <script>
 (function(){
 'use strict';
@@ -125,7 +125,7 @@ body.bb-stock-mobile-staff #itemRows{width:max-content!important;min-width:100%!
 body.bb-stock-mobile-staff #itemHead>tr.bb-mobile-stock-head,
 body.bb-stock-mobile-staff #itemRows>tr{
   display:grid!important;
-  grid-template-columns:150px repeat(6,70px)!important;
+  grid-template-columns:150px repeat(7,76px)!important;
   width:max-content!important;min-width:100%!important;
 }
 body.bb-stock-mobile-staff #itemRows>tr:not(.bb-empty-row){overflow:visible!important}
@@ -144,8 +144,9 @@ body.bb-stock-mobile-staff #itemRows>tr:not(.bb-empty-row)>td:first-child{
 body.bb-stock-mobile-staff #itemRows>tr>td:nth-child(3){color:#168551!important;font-weight:900!important}
 body.bb-stock-mobile-staff #itemRows>tr>td:nth-child(4){color:#bf6d14!important;font-weight:900!important}
 body.bb-stock-mobile-staff #itemRows>tr>td:nth-child(5){color:var(--bb-green)!important;font-weight:900!important}
-body.bb-stock-mobile-staff #itemRows>tr>td:nth-child(6){color:var(--bb-red)!important;font-weight:900!important}
-body.bb-stock-mobile-staff #itemRows>tr>td:nth-child(7){color:var(--bb-blue)!important;font-weight:900!important}
+body.bb-stock-mobile-staff #itemRows>tr>td:nth-child(6){color:#b57522!important;font-weight:900!important}
+body.bb-stock-mobile-staff #itemRows>tr>td:nth-child(7){color:var(--bb-red)!important;font-weight:900!important}
+body.bb-stock-mobile-staff #itemRows>tr>td:nth-child(8){color:var(--bb-blue)!important;font-weight:900!important}
 `;
 const MOBILE_SCRIPT=`(function(){
 'use strict';
@@ -208,7 +209,8 @@ function rowHtml(cls,name,item,unit,extra=''){
     '<td>'+escText(fmtWithUnit(item.adjustmentInQty,unit))+'</td>'+
     '<td>'+escText(fmtWithUnit(item.adjustmentOutQty,unit))+'</td>'+
     '<td>'+escText(fmtWithUnit(item.soldQty,unit))+'</td>'+
-    '<td>'+escText(fmtWithUnit(item.damagedQty,unit))+'</td>'+
+    '<td>'+escText(fmtWithUnit(item.damageReturnQty,unit))+'</td>'+
+    '<td>'+escText(fmtWithUnit(item.currentDamageQty,unit))+'</td>'+
     '<td>'+escText(fmtWithUnit(item.currentQty,unit))+'</td>'+
   '</tr>';
 }
@@ -219,7 +221,7 @@ function ensureListHead(){
   if(!head){
     head=document.createElement('div');
     head.className='bb-stock-list-head';
-    head.innerHTML='<span>Name</span><span>Assign/Unit</span><span>Adj IN</span><span>Adj OUT</span><span>Sold/Unit</span><span>Damage/Unit</span><span>Current/Unit</span>';
+    head.innerHTML='<span>Name</span><span>Assign/Unit</span><span>Adj IN</span><span>Adj OUT</span><span>Sold/Unit</span><span>Damage Return</span><span>Current Damage</span><span>Current/Unit</span>';
     const table=document.getElementById('itemTable');
     if(table)wrap.insertBefore(head,table);
   }
@@ -247,7 +249,7 @@ function renderMobileItems(){
 
   ensureListHead();
   const heading=document.getElementById('itemHead');
-  if(heading)heading.innerHTML='<tr class="bb-mobile-stock-head"><th>Name</th><th>Assign</th><th>Adj IN</th><th>Adj OUT</th><th>Sold</th><th>Damage</th><th>Current</th></tr>';
+  if(heading)heading.innerHTML='<tr class="bb-mobile-stock-head"><th>Name</th><th>Assign</th><th>Adj IN</th><th>Adj OUT</th><th>Sold</th><th>Damage Return</th><th>Current Damage</th><th>Current</th></tr>';
 
   const all=Array.isArray(data.items)?data.items:[];
   const query=cleanText(search&&search.value).toLowerCase();
@@ -278,6 +280,8 @@ function renderMobileItems(){
         adjustmentOutQty:sum(members,'adjustmentOutQty'),
         soldQty:sum(members,'soldQty'),
         damagedQty:sum(members,'damagedQty'),
+        damageReturnQty:sum(members,'damageReturnQty'),
+        currentDamageQty:sum(members,'currentDamageQty'),
         currentQty:sum(members,'currentQty')
       };
 
@@ -326,7 +330,7 @@ function renderMobileItems(){
     shown++;
   });
 
-  body.innerHTML=html||'<tr class="bb-empty-row"><td colspan="7" class="empty">No current stock matches this view.</td></tr>';
+  body.innerHTML=html||'<tr class="bb-empty-row"><td colspan="8" class="empty">No current stock matches this view.</td></tr>';
   if(count)count.textContent=shown+' line'+(shown===1?'':'s');
   return true;
 }
