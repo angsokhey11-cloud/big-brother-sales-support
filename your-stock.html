@@ -30,9 +30,14 @@ body.bb-stock-desktop-staff #itemRows tr.bb-child-row td:first-child::before{con
 body.bb-stock-desktop-staff #itemRows tr.bb-child-row[hidden]{display:none}
 body.bb-stock-desktop-staff #itemRows tr.bb-single-row td:first-child{color:#173f77;font-weight:800}
 body.bb-stock-desktop-staff #itemRows td:nth-child(2){color:var(--navy);font-weight:900}
-body.bb-stock-desktop-staff #itemRows td:nth-child(3){color:var(--green);font-weight:900}
-body.bb-stock-desktop-staff #itemRows td:nth-child(4){color:#c93c46;font-weight:900}
-body.bb-stock-desktop-staff #itemRows td:nth-child(5){color:var(--blue);font-weight:900}
+body.bb-stock-desktop-staff #itemRows td:nth-child(3){color:#13824d;font-weight:900}
+body.bb-stock-desktop-staff #itemRows td:nth-child(4){color:#c17718;font-weight:900}
+body.bb-stock-desktop-staff #itemRows td:nth-child(5){color:var(--green);font-weight:900}
+body.bb-stock-desktop-staff #itemRows td:nth-child(6){color:#c93c46;font-weight:900}
+body.bb-stock-desktop-staff #itemRows td:nth-child(7){color:var(--blue);font-weight:900}
+body.bb-stock-desktop-staff #itemTable{min-width:1080px}
+#itemHead th:nth-child(3){color:#18864b}
+#itemHead th:nth-child(4){color:#bf6d14}
 
 /* Admin uses the same proven salesman product-list flow, one pending batch at a time. */
 body.bb-stock-desktop-staff.bb-stock-admin-batch .summary{grid-template-columns:repeat(4,minmax(0,1fr));max-width:none}
@@ -380,10 +385,17 @@ function bbGroupUnit(rows){
   const units=[...new Set(rows.map(x=>clean(x?.unit)).filter(Boolean))];
   return units.length===1?units[0]:'unit';
 }
+function bbOriginalAssigned(row){
+  // Assigned Qty in the underlying snapshot already includes adjustments.
+  // Remove net adjustments only for this presentation column.
+  return Math.max(0,num(row?.assignedQty)-num(row?.adjustmentInQty)+num(row?.adjustmentOutQty));
+}
 function bbMobileStockRow(cls,name,row,unit,attrs=''){
   return `<tr class="${cls}" ${attrs}>
     <td>${name}</td>
-    <td class="num">${bbQtyUnit(row.assignedQty,unit)}</td>
+    <td class="num">${bbQtyUnit(bbOriginalAssigned(row),unit)}</td>
+    <td class="num bb-adj-in">${bbQtyUnit(row.adjustmentInQty,unit)}</td>
+    <td class="num bb-adj-out">${bbQtyUnit(row.adjustmentOutQty,unit)}</td>
     <td class="num">${bbQtyUnit(row.soldQty,unit)}</td>
     <td class="num">${bbQtyUnit(row.damagedQty,unit)}</td>
     <td class="num"><strong>${bbQtyUnit(row.currentQty,unit)}</strong></td>
@@ -398,7 +410,7 @@ function renderMobileStaffStock(){
   let shown=0;
 
   $('itemTable').classList.remove('admin-table');
-  $('itemHead').innerHTML='<tr class="bb-mobile-stock-head"><th>Name</th><th class="num">Assign QTY</th><th class="num">Sold QTY</th><th class="num">Damage QTY</th><th class="num">Current QTY</th></tr>';
+  $('itemHead').innerHTML='<tr class="bb-mobile-stock-head"><th>Name</th><th class="num">Assign QTY</th><th class="num">Adjustment IN</th><th class="num">Adjustment OUT</th><th class="num">Sold QTY</th><th class="num">Damage QTY</th><th class="num">Current QTY</th></tr>';
 
   for(const spec of BB_STOCK_ORDER){
     if(spec.kind==='group'){
@@ -415,6 +427,8 @@ function renderMobileStaffStock(){
       const unit=bbGroupUnit(members);
       const totals={
         assignedQty:bbSumRows(members,'assignedQty'),
+        adjustmentInQty:bbSumRows(members,'adjustmentInQty'),
+        adjustmentOutQty:bbSumRows(members,'adjustmentOutQty'),
         soldQty:bbSumRows(members,'soldQty'),
         damagedQty:bbSumRows(members,'damagedQty'),
         currentQty:bbSumRows(members,'currentQty')
@@ -463,7 +477,7 @@ function renderMobileStaffStock(){
     shown++;
   }
 
-  $('itemRows').innerHTML=html||'<tr class="bb-empty-row"><td colspan="5" class="empty">No current stock matches this view.</td></tr>';
+  $('itemRows').innerHTML=html||'<tr class="bb-empty-row"><td colspan="7" class="empty">No current stock matches this view.</td></tr>';
   $('itemCount').textContent=shown+' line'+(shown===1?'':'s');
 }
 function readSession(){try{return JSON.parse(localStorage.getItem(SESSION_KEY)||'null')}catch(_){return null}}
@@ -778,6 +792,22 @@ async function fetchStockData(){
     p_batch_id:staffSelectedBatchId||null
   });
 }
+async function bbAddBatchAdjustmentColumns(report){
+  if(!report?.selectedBatch?.batchId||!Array.isArray(report.items)||!report.items.length)return report;
+  const response=await rpc('bb_sales_support_batch_adjustment_totals',{
+    p_batch_id:report.selectedBatch.batchId
+  });
+  if(!response?.success||response.batchId!==report.selectedBatch.batchId||
+     !Array.isArray(response.items))throw new Error('Batch adjustment details could not be loaded.');
+  const totals=new Map(response.items.map(item=>[clean(item.productCode),item]));
+  report.items=report.items.map(item=>{
+    const adjustment=totals.get(clean(item.productCode))||{};
+    return {...item,adjustmentInQty:num(adjustment.adjustmentInQty),
+      adjustmentOutQty:num(adjustment.adjustmentOutQty),
+      lastAdjustmentAt:adjustment.lastAdjustmentAt||null};
+  });
+  return report;
+}
 async function load(showLoader=true){
   if(loadingNow)return;
   loadingNow=true;
@@ -789,6 +819,7 @@ async function load(showLoader=true){
   try{
     const next=await fetchStockData();
     if(!next?.success)throw new Error('Could not load Your Stock.');
+    await bbAddBatchAdjustmentColumns(next);
     data=next;
 
     const selected=data?.selectedBatch||null;
