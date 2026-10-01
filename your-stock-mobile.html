@@ -13,7 +13,7 @@ html,body{margin:0;width:100%;height:100%;overflow:hidden;background:#f4f7fb;fon
 </head>
 <body>
 <div id="boot">Loading Your Stock…</div>
-<iframe id="stockFrame" src="your-stock.html?embed=1&mobileSkin=1&v=20261001-stockadjustcols3" title="Your Stock"></iframe>
+<iframe id="stockFrame" src="your-stock.html?embed=1&mobileSkin=1&v=20261001-stockadjustcols4" title="Your Stock"></iframe>
 <script>
 (function(){
 'use strict';
@@ -135,6 +135,7 @@ body.bb-stock-mobile-staff #itemHead>tr.bb-mobile-stock-head>th{
   overflow:visible!important;
 }
 body.bb-stock-mobile-staff #itemRows>tr>td{font-size:9px!important}
+body.bb-stock-mobile-staff #itemRows .bb-adjusted-zero{display:block!important;font-size:8px!important;color:#a87630!important;font-weight:850!important;line-height:1.15!important}
 body.bb-stock-mobile-staff #itemHead>tr.bb-mobile-stock-head>th:first-child,
 body.bb-stock-mobile-staff #itemRows>tr:not(.bb-empty-row)>td:first-child{
   position:sticky!important;left:0!important;z-index:2!important;
@@ -200,6 +201,7 @@ function groupUnit(items){
   return units.length===1?units[0]:'unit';
 }
 function rowHtml(cls,name,item,unit,extra=''){
+  if(item&&item.adjustmentOnly)name+='<small class="bb-adjusted-zero">Adjusted · 0 current stock</small>';
   return '<tr class="'+cls+'" '+extra+'>'+
     '<td>'+name+'</td>'+
     '<td>'+escText(fmtWithUnit(Math.max(0,qnum(item.assignedQty)-qnum(item.adjustmentInQty)+qnum(item.adjustmentOutQty)),unit))+'</td>'+
