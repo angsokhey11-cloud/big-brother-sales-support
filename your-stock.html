@@ -39,6 +39,22 @@ body.bb-stock-desktop-staff #itemTable{min-width:1080px}
 #itemHead th:nth-child(3){color:#18864b}
 #itemHead th:nth-child(4){color:#bf6d14}
 
+.bb-adjust-history{margin:12px 14px 16px;border:1px solid #d4e2f0;border-radius:10px;background:#f8fbff;overflow:hidden}
+.bb-adjust-history>summary{cursor:pointer;padding:12px 13px;color:#173f77;font-weight:850;font-size:12px;list-style-position:inside}
+.bb-adjust-history[hidden]{display:none}
+.bb-adjust-history-note{color:#55718f;font-size:11px;padding:2px 12px 10px}
+.bb-adjust-history-lines{padding:0 12px 10px;max-height:420px;overflow:auto}
+.bb-adjust-history-line{display:grid;grid-template-columns:minmax(145px,1.3fr) minmax(80px,.7fr) minmax(80px,.7fr) minmax(180px,1fr);align-items:center;gap:9px;padding:9px 4px;border-top:1px solid #e3ecf7;font-size:11px;line-height:1.4}
+.bb-adjust-history-line strong{display:block;color:#173f77}
+.bb-adjust-history-line small{display:block;color:#6b829b;margin-top:3px}
+.bb-adjust-history-in{color:#14804b;font-weight:850}
+.bb-adjust-history-out{color:#b57522;font-weight:850}
+.bb-adjust-history-reason{color:#536b83;overflow-wrap:anywhere}
+@media(max-width:680px){
+ .bb-adjust-history{margin:9px 8px}
+ .bb-adjust-history-line{grid-template-columns:minmax(125px,1fr) 72px 72px;gap:6px;font-size:10px}
+ .bb-adjust-history-reason{grid-column:1/-1;padding-left:2px;font-size:10px}
+}
 /* Admin uses the same proven salesman product-list flow, one pending batch at a time. */
 body.bb-stock-desktop-staff.bb-stock-admin-batch .summary{grid-template-columns:repeat(4,minmax(0,1fr));max-width:none}
 body.bb-stock-desktop-staff.bb-stock-admin-batch .summary .kpi:nth-child(1),
@@ -333,6 +349,11 @@ body.bb-stock-mobile-progress .bb-selling-progress-track{height:12px}
         </div>
       </div>
       <div class="table-wrap"><table id="itemTable" class="table"><thead id="itemHead"></thead><tbody id="itemRows"></tbody></table></div>
+      <details id="bbAdjustmentHistory" class="bb-adjust-history" hidden>
+        <summary id="bbAdjustmentHistoryLabel">Batch Adjustment History</summary>
+        <div class="bb-adjust-history-note">Batch corrections only · includes products now at zero stock. Regular sales and back sales are not included.</div>
+        <div id="bbAdjustmentHistoryRows" class="bb-adjust-history-lines"></div>
+      </details>
     </section>
   </main>
   <div class="footer">BIG BROTHER Accounting System · Sales Support · Your Stock</div>
@@ -739,6 +760,26 @@ function renderSellingProgress(){
 function renderItems(){
   renderMobileStaffStock();
 }
+let bbLastAdjustmentHistoryBatch='';
+function renderAdjustmentHistory(){
+  const details=$('bbAdjustmentHistory'),label=$('bbAdjustmentHistoryLabel'),body=$('bbAdjustmentHistoryRows');
+  const history=Array.isArray(data?.adjustmentHistory)?data.adjustmentHistory:[];
+  const batchId=clean(data?.selectedBatch?.batchId);
+  if(bbLastAdjustmentHistoryBatch!==batchId){details.open=false;bbLastAdjustmentHistoryBatch=batchId}
+  details.hidden=!batchId||!history.length;
+  if(details.hidden){body.replaceChildren();return}
+  const adjustments=history.filter(x=>num(x.adjustmentInQty)>0||num(x.adjustmentOutQty)>0);
+  const totalIn=num(data?.adjustmentSummary?.inQty),totalOut=num(data?.adjustmentSummary?.outQty);
+  label.textContent='Batch Adjustment History ('+adjustments.length+' lines) · IN '+qty(totalIn)+' / OUT '+qty(totalOut);
+  body.innerHTML=adjustments.map(h=>{
+    const stamp=h.createdAt?new Date(h.createdAt).toLocaleString('en-GB',{day:'2-digit',month:'short',year:'numeric',hour:'2-digit',minute:'2-digit'}):'-';
+    const unit=esc(bbShortUnit(h.unit));
+    return '<div class="bb-adjust-history-line"><div><strong>'+esc(h.productName||h.productCode)+'</strong><small>'+esc(stamp)+'</small></div>'+
+      '<div class="bb-adjust-history-in">'+(num(h.adjustmentInQty)>0?'+ '+qty(h.adjustmentInQty)+' '+unit:'—')+'</div>'+
+      '<div class="bb-adjust-history-out">'+(num(h.adjustmentOutQty)>0?'− '+qty(h.adjustmentOutQty)+' '+unit:'—')+'</div>'+
+      '<div class="bb-adjust-history-reason">'+esc(h.reason||'Batch correction')+'</div></div>';
+  }).join('');
+}
 function render(){
   const st=data?.staff||{};
   const isAdmin=!!data?.isAdmin;
@@ -763,6 +804,7 @@ function render(){
   renderBatches();
   renderSellingProgress();
   renderItems();
+  renderAdjustmentHistory();
   $('loading').hidden=true;
   $('content').hidden=false;
 }
@@ -800,6 +842,11 @@ async function bbAddBatchAdjustmentColumns(report){
   if(!response?.success||response.batchId!==report.selectedBatch.batchId||
      !Array.isArray(response.items))throw new Error('Batch adjustment details could not be loaded.');
   const totals=new Map(response.items.map(item=>[clean(item.productCode),item]));
+  report.adjustmentHistory=Array.isArray(response.history)?response.history:[];
+  report.adjustmentSummary={
+    inQty:response.items.reduce((sum,x)=>sum+num(x.adjustmentInQty),0),
+    outQty:response.items.reduce((sum,x)=>sum+num(x.adjustmentOutQty),0)
+  };
   report.items=report.items.map(item=>{
     const adjustment=totals.get(clean(item.productCode))||{};
     return {...item,adjustmentInQty:num(adjustment.adjustmentInQty),
