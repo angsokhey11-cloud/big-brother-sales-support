@@ -8,13 +8,13 @@ h1{font-size:23px;margin:5px 0}h2{font-size:16px;margin:0 0 12px}.muted,small{co
 label{display:block;font-size:12px;font-weight:bold;margin:12px 0 6px}
 select,input,textarea{font:inherit;padding:10px;border:1px solid #bdcede;border-radius:9px;width:100%;background:white;color:#173f77}
 textarea{min-height:65px}.line{display:grid;grid-template-columns:minmax(150px,1fr) 90px 100px 104px;gap:10px;align-items:center;padding:9px 0;border-bottom:1px solid #eaf0f7}
-.line:last-child{border:0}.line strong{display:block;font-size:13px}.line small{display:block;font-size:11px;margin-top:4px}
+.line:last-child{border:0}#pending .line{grid-template-columns:minmax(110px,1fr) 115px 120px}.line strong{display:block;font-size:13px}.line small{display:block;font-size:11px;margin-top:4px}
 button,.action{background:#17457a;color:white;border:0;border-radius:9px;padding:11px 14px;font-weight:800;cursor:pointer;text-decoration:none;display:inline-block}
 button:disabled{opacity:.6;cursor:wait}.actions{display:flex;gap:9px;align-items:center;flex-wrap:wrap;margin-top:15px}
 .info{padding:11px;border:1px solid #cee0f2;background:#eef6ff;border-radius:9px;font-size:12px;line-height:1.5}
 #status.error{background:#fff0ee;color:#ad3434;border-color:#eec8c1}#status.ok{background:#eef9f0;color:#19613f;border-color:#b7dcc7}
 .name{font-size:13px}.num{text-align:right}.reported{font-size:12px;font-weight:900;color:#aa7125}
-@media(max-width:500px){body{padding:8px}.card{padding:12px}.line{grid-template-columns:minmax(95px,1fr) 54px 61px 68px;gap:5px}.line strong{font-size:11px}.line small{font-size:9px}.line input{padding:7px 5px;font-size:12px}}
+@media(max-width:500px){body{padding:8px}.card{padding:12px}#pending .line{grid-template-columns:minmax(85px,1fr) 75px 95px}.line{grid-template-columns:minmax(95px,1fr) 54px 61px 68px;gap:5px}.line strong{font-size:11px}.line small{font-size:9px}.line input{padding:7px 5px;font-size:12px}}
 </style></head><body><div class="page">
 <header><a class="action" href="your-stock.html?v=20261001-damage-report1">← Your Stock</a><h1>Report Damage</h1><p class="muted">Salesman reports damage immediately. Warehouse confirms the physical return later using Batch Damage Key-in.</p></header>
 <div id="status" class="info">Connecting to your assigned batches…</div>
