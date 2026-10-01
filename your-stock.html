@@ -37,6 +37,8 @@ body.bb-stock-desktop-staff #itemRows td:nth-child(6){color:#b57522;font-weight:
 body.bb-stock-desktop-staff #itemRows td:nth-child(7){color:#c93c46;font-weight:900}
 body.bb-stock-desktop-staff #itemRows td:nth-child(8){color:var(--blue);font-weight:900}
 body.bb-stock-desktop-staff #itemTable{min-width:1200px}
+.bb-report-damage-link{display:inline-flex!important;align-items:center;justify-content:center;white-space:nowrap}
+body.bb-stock-admin-batch .bb-report-damage-link{display:none!important}
 .bb-adjusted-zero{display:block;font-size:9px;font-weight:750;color:#a87532;margin-top:3px;white-space:normal}
 #itemHead th:nth-child(3){color:#18864b}
 #itemHead th:nth-child(4){color:#bf6d14}
@@ -303,7 +305,7 @@ body.bb-stock-mobile-progress .bb-selling-progress-track{height:12px}
 <div class="app">
   <div class="hero">
     <div><h1>📦 Your Stock</h1><p>Live stock currently assigned to your Staff ID. Read-only and updated from BIG BROTHER stock activity.</p></div>
-    <div class="actions"><button id="refreshBtn" class="btn" type="button">↻ Refresh</button></div>
+    <div class="actions"><a class="btn bb-report-damage-link" href="report-damage.html?v=20261001-damage-report1" style="text-decoration:none;background:#b57522">Report Damage</a><button id="refreshBtn" class="btn" type="button">↻ Refresh</button></div>
   </div>
   <div id="profile" class="profile">Loading staff responsibility…</div>
   <div id="error" class="error" hidden></div>
