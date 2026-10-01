@@ -1,0 +1,100 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>BIG BROTHER — Report Batch Damage</title>
+<style>
+:root{font-family:Arial,Helvetica,sans-serif;color:#173f77;background:#f1f5fb}*{box-sizing:border-box}
+body{margin:0;padding:16px}.page{max-width:950px;margin:auto}.card{background:white;border:1px solid #d9e3f0;border-radius:13px;padding:16px;margin:12px 0}
+h1{font-size:23px;margin:5px 0}h2{font-size:16px;margin:0 0 12px}.muted,small{color:#64778d}
+label{display:block;font-size:12px;font-weight:bold;margin:12px 0 6px}
+select,input,textarea{font:inherit;padding:10px;border:1px solid #bdcede;border-radius:9px;width:100%;background:white;color:#173f77}
+textarea{min-height:65px}.line{display:grid;grid-template-columns:minmax(150px,1fr) 120px 104px;gap:10px;align-items:center;padding:9px 0;border-bottom:1px solid #eaf0f7}
+.line:last-child{border:0}.line strong{display:block;font-size:13px}.line small{display:block;font-size:11px;margin-top:4px}
+button,.action{background:#17457a;color:white;border:0;border-radius:9px;padding:11px 14px;font-weight:800;cursor:pointer;text-decoration:none;display:inline-block}
+button:disabled{opacity:.6;cursor:wait}.actions{display:flex;gap:9px;align-items:center;flex-wrap:wrap;margin-top:15px}
+.info{padding:11px;border:1px solid #cee0f2;background:#eef6ff;border-radius:9px;font-size:12px;line-height:1.5}
+#status.error{background:#fff0ee;color:#ad3434;border-color:#eec8c1}#status.ok{background:#eef9f0;color:#19613f;border-color:#b7dcc7}
+.name{font-size:13px}.num{text-align:right}.reported{font-size:12px;font-weight:900;color:#aa7125}
+@media(max-width:500px){body{padding:8px}.card{padding:12px}.line{grid-template-columns:minmax(105px,1fr) 75px 82px;gap:5px}.line strong{font-size:11px}.line small{font-size:9px}.line input{padding:7px 5px;font-size:12px}}
+</style></head><body><div class="page">
+<header><a class="action" href="your-stock.html?v=20261001-damage-report1">← Your Stock</a><h1>Report Damage</h1><p class="muted">Salesman reports damage immediately. Warehouse confirms the physical return later using Batch Damage Key-in.</p></header>
+<div id="status" class="info">Connecting to your assigned batches…</div>
+<section class="card"><label for="batch">Your Pending Batch</label><select id="batch" disabled><option>Loading…</option></select>
+<div id="context" class="info" style="margin-top:10px" hidden></div></section>
+<section class="card"><h2>Damaged products still with you</h2><div class="info">Enter newly discovered damaged quantities only. Reporting them deducts sellable batch stock once. Do not enter damage that was already reported.</div>
+<div class="line muted" style="font-weight:800;font-size:11px"><span>Product</span><span class="num">Good QTY</span><span class="num">Report QTY</span></div>
+<div id="products"><p class="muted">Select a batch.</p></div>
+<label for="note">Note (optional)</label><textarea id="note" maxlength="300" placeholder="Optional damage details"></textarea>
+<div class="actions"><button type="button" id="submit" disabled>Submit Damage Report</button><button type="button" id="refresh">Refresh</button></div></section>
+<section class="card"><h2>Awaiting warehouse return</h2><div id="pending" class="muted">No pending damage.</div></section>
+</div><script>
+(function(){
+'use strict';
+const URL='https://sjfhlaclgmkwwofzstok.supabase.co',KEY='sb_publishable_w762jR65CWwlO30fKQsYOw_6L9grx8S',SKEY='BB_SUPABASE_DEV_SESSION_V1';
+const $=id=>document.getElementById(id),num=x=>Number(x)||0,esc=x=>String(x??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+let batches=[],items=[],loading=false,session;
+function status(message,type=''){$('status').textContent=message;$('status').className='info '+type}
+async function rpc(name,args={}){
+ session=JSON.parse(localStorage.getItem(SKEY)||'null');
+ if(!session?.access_token)throw Error('Sign in through the BIG BROTHER Dashboard first.');
+ if(session.expires_at&&session.expires_at<Math.floor(Date.now()/1000)+40){
+  const res=await fetch(URL+'/auth/v1/token?grant_type=refresh_token',{method:'POST',headers:{apikey:KEY,'Content-Type':'application/json'},body:JSON.stringify({refresh_token:session.refresh_token})});
+  const next=await res.json();if(!res.ok)throw Error(next.message||'Session expired.');
+  next.expires_at=Math.floor(Date.now()/1000)+Number(next.expires_in||3600);
+  localStorage.setItem(SKEY,JSON.stringify(next));session=next;
+ }
+ const res=await fetch(URL+'/rest/v1/rpc/'+name,{method:'POST',headers:{apikey:KEY,Authorization:'Bearer '+session.access_token,'Content-Type':'application/json'},body:JSON.stringify(args),cache:'no-store'});
+ const value=await res.json();if(!res.ok)throw Error(value.message||'Request failed.');
+ return value;
+}
+async function load(preserve=true){
+ if(loading)return;loading=true;$('submit').disabled=true;$('refresh').disabled=true;
+ try{
+  const batch=$('batch').value;
+  const result=await rpc('bb_sales_support_my_stock',{p_batch_id:preserve?batch||null:null});
+  if(!result?.success)throw Error('Unable to load assigned batches.');
+  batches=result.batches||[];const selected=result.selectedBatch;
+  $('batch').innerHTML=batches.map(b=>'<option value="'+esc(b.batchId)+'">'+esc(b.batchId)+' · '+esc(b.locationName||b.locationCode||'')+'</option>').join('')||'<option value="">No pending batches</option>';
+  $('batch').value=selected?.batchId||'';
+  $('batch').disabled=!batches.length;
+  await display(selected?.batchId||'');
+  status('Select products and enter new damage quantities.','ok');
+ }catch(e){status(e.message||String(e),'error')}finally{loading=false;$('refresh').disabled=false}
+}
+async function display(batchId){
+ $('submit').disabled=true;$('products').textContent='Loading batch products…';$('pending').textContent='Loading current damage…';
+ if(!batchId){$('products').textContent='No open assigned batch.';$('pending').textContent='';return}
+ const [result,damaged]=await Promise.all([rpc('bb_sales_support_my_stock',{p_batch_id:batchId}),rpc('bb_batch_damage_pending',{p_batch_id:batchId})]);
+ if(result.selectedBatch?.batchId!==batchId)throw Error('This batch is no longer assigned/open.');
+ items=Array.isArray(result.items)?result.items:[];
+ $('context').hidden=false;$('context').textContent=(damaged.salesmanName||'')+' · '+(damaged.locationName||'');
+ $('products').innerHTML=items.map((p,i)=>'<div class="line"><div class="name"><strong>'+esc(p.productName||p.productCode)+'</strong><small>'+esc(p.productCode)+'</small></div><div class="reported num">'+num(p.currentQty).toLocaleString('en-US')+'</div><input data-i="'+i+'" type="number" inputmode="decimal" min="0" step="0.0001" max="'+num(p.currentQty)+'" value="" placeholder="0" aria-label="Damage quantity for '+esc(p.productName||p.productCode)+'"></div>').join('')||'<p class="muted">No remaining sellable products for this batch.</p>';
+ const rows=damaged.items||[];
+ $('pending').innerHTML=rows.length?rows.map(x=>'<div class="line"><strong>'+esc(x.productName||x.productCode)+'</strong><span class="muted">Reported '+num(x.reportedQty)+'</span><strong class="reported num">Awaiting '+num(x.currentDamageQty)+'</strong></div>').join(''):'No damage awaiting warehouse return.';
+ $('submit').disabled=!items.length;
+}
+$('batch').addEventListener('change',async()=>{try{await display($('batch').value)}catch(e){status(e.message,'error')}});
+$('refresh').onclick=()=>load();
+$('submit').onclick=async()=>{
+ const payload=[];
+ for(const el of $('products').querySelectorAll('input[data-i]')){
+  if(!el.value.trim())continue;
+  const p=items[Number(el.dataset.i)],q=Number(el.value);
+  if(!Number.isFinite(q)||q<=0||q>num(p.currentQty)+0.000001||Math.abs(q*10000-Math.round(q*10000))>0.000001){
+   status('Invalid damage quantity for '+p.productName,'error');el.focus();return;
+  }
+  payload.push({productCode:p.productCode,qty:q});
+ }
+ if(!payload.length){status('Enter at least one damage quantity.','error');return}
+ if(!confirm('Report '+payload.length+' damaged product(s)? This deducts sellable stock now; the warehouse will receive them later.'))return;
+ $('submit').disabled=true;
+ try{
+  const requestId='SALESMAN-DAMAGE-'+Date.now()+'-'+Math.random().toString(36).slice(2,9);
+  const r=await rpc('bb_salesman_report_batch_damage',{p_payload:{requestId,batchId:$('batch').value,items:payload,note:$('note').value.trim()}});
+  if(!r.success)throw Error('Damage report not saved.');
+  $('note').value='';await load(true);
+  status('Damage report saved. The warehouse can now see and receive these quantities.','ok');
+ }catch(e){status(e.message,'error');$('submit').disabled=false}
+};
+load();
+})();
+</script></body></html>
