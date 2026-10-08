@@ -32,6 +32,13 @@ button:disabled{opacity:.6;cursor:wait}.actions{display:flex;gap:9px;align-items
 const URL='https://sjfhlaclgmkwwofzstok.supabase.co',KEY='sb_publishable_w762jR65CWwlO30fKQsYOw_6L9grx8S',SKEY='BB_SUPABASE_DEV_SESSION_V1';
 const $=id=>document.getElementById(id),num=x=>Number(x)||0,esc=x=>String(x??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 let batches=[],items=[],loading=false,session,isAdmin=false;
+function batchDateText(value){
+ const m=String(value||'').match(/^(\d{4})-(\d{2})-(\d{2})/);
+ if(!m)return '-';
+ const months=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+ const month=months[Number(m[2])-1];
+ return month?m[3]+'-'+month+'-'+m[1]:'-';
+}
 function status(message,type=''){$('status').textContent=message;$('status').className='info '+type}
 async function rpc(name,args={}){
  session=JSON.parse(localStorage.getItem(SKEY)||'null');
@@ -56,7 +63,7 @@ async function load(preserve=true){
   if(!result?.success)throw Error('Unable to load assigned batches.');
   batches=result.batches||[];const selected=result.selectedBatch;
   $('batch').previousElementSibling.textContent=isAdmin?'All Pending Salesman Batches':'Your Pending Batch';
-  $('batch').innerHTML=batches.map(b=>'<option value="'+esc(b.batchId)+'">'+esc(b.batchId)+' · '+esc(b.salesmanName||'')+' · '+esc(b.locationName||b.locationCode||'')+'</option>').join('')||'<option value="">No pending batches</option>';
+  $('batch').innerHTML=batches.map(b=>'<option value="'+esc(b.batchId)+'">'+esc(b.batchId)+' · '+esc(batchDateText(b.batchDate))+' · '+esc(b.salesmanName||'')+' · '+esc(b.locationName||b.locationCode||'')+'</option>').join('')||'<option value="">No pending batches</option>';
   $('batch').value=selected?.batchId||'';
   $('batch').disabled=!batches.length;
   await display(selected?.batchId||'');
@@ -65,12 +72,13 @@ async function load(preserve=true){
 }
 async function display(batchId){
  $('submit').disabled=true;$('products').textContent='Loading batch products…';$('pending').textContent='Loading current damage…';
- if(!batchId){$('products').textContent='No open assigned batch.';$('pending').textContent='';return}
+ if(!batchId){$('context').hidden=true;$('products').textContent='No open assigned batch.';$('pending').textContent='';return}
  const [result,damaged]=await Promise.all([rpc(isAdmin?'bb_sales_support_admin_your_stock':'bb_sales_support_my_stock',{p_batch_id:batchId}),rpc('bb_batch_damage_pending',{p_batch_id:batchId})]);
  if(result.selectedBatch?.batchId!==batchId)throw Error('This batch is no longer assigned/open.');
  items=Array.isArray(result.items)?result.items:[];
  const currentDamage=new Map((damaged.items||[]).map(x=>[String(x.productCode||''),num(x.currentDamageQty)]));
- $('context').hidden=false;$('context').textContent=(damaged.salesmanName||'')+' · '+(damaged.locationName||'');
+ $('context').hidden=false;
+ $('context').textContent=(damaged.salesmanName||'')+' · '+(damaged.locationName||'')+' · Batch Date: '+batchDateText(result.selectedBatch.batchDate);
  $('products').innerHTML=items.map((p,i)=>'<div class="line"><div class="name"><strong>'+esc(p.productName||p.productCode)+'</strong><small>'+esc(p.productCode)+'</small></div><div class="reported num">'+num(p.currentQty).toLocaleString('en-US')+'</div><div class="reported num" title="Previously reported damage awaiting warehouse return">'+num(currentDamage.get(String(p.productCode||''))).toLocaleString('en-US')+'</div><input data-i="'+i+'" type="number" inputmode="decimal" min="0" step="0.0001" max="'+num(p.currentQty)+'" value="" placeholder="0" aria-label="Damage quantity for '+esc(p.productName||p.productCode)+'"></div>').join('')||'<p class="muted">No remaining sellable products for this batch.</p>';
  const rows=damaged.items||[];
  $('pending').innerHTML=rows.length?rows.map(x=>'<div class="line"><strong>'+esc(x.productName||x.productCode)+'</strong><span class="muted">Reported '+num(x.reportedQty)+'</span><strong class="reported num">Awaiting '+num(x.currentDamageQty)+'</strong></div>').join(''):'No damage awaiting warehouse return.';
