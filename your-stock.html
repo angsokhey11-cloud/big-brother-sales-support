@@ -357,7 +357,7 @@ body.bb-stock-mobile-progress .bb-selling-progress-track{height:12px}
       <div class="table-wrap"><table id="itemTable" class="table"><thead id="itemHead"></thead><tbody id="itemRows"></tbody></table></div>
       <details id="bbAdjustmentHistory" class="bb-adjust-history" hidden>
         <summary id="bbAdjustmentHistoryLabel">Batch Adjustment History</summary>
-        <div class="bb-adjust-history-note">Batch corrections and Borrow Clear outflows · includes products now at zero stock. Regular sales and back sales are not included.</div>
+        <div class="bb-adjust-history-note">Batch corrections, Borrow In and Borrow Clear movements · includes products now at zero stock. Regular sales and back sales are not included.</div>
         <div id="bbAdjustmentHistoryRows" class="bb-adjust-history-lines"></div>
       </details>
     </section>
@@ -785,13 +785,14 @@ function renderAdjustmentHistory(){
   if(details.hidden){body.replaceChildren();return}
   const adjustments=history.filter(x=>num(x.adjustmentInQty)>0||num(x.adjustmentOutQty)>0);
   const totalIn=num(data?.adjustmentSummary?.inQty),totalOut=num(data?.adjustmentSummary?.outQty);
-  label.textContent='Batch Adjustment / Borrow Clear History ('+adjustments.length+' lines) · IN '+qty(totalIn)+' / OUT '+qty(totalOut);
+  label.textContent='Batch Adjustment / Borrow History ('+adjustments.length+' lines) · IN '+qty(totalIn)+' / OUT '+qty(totalOut);
   body.innerHTML=adjustments.map(h=>{
     const stamp=h.activityDate
       ? esc(h.activityDate)+' · '+(h.createdAt?new Date(h.createdAt).toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit'}):'')
       : (h.createdAt?new Date(h.createdAt).toLocaleString('en-GB',{day:'2-digit',month:'short',year:'numeric',hour:'2-digit',minute:'2-digit'}):'-');
     const unit=esc(bbShortUnit(h.unit));
-    const kind=String(h.movementType||'').toUpperCase()==='CUSTOMER_BORROW_CLEAR'?'Borrow Clear':'Batch Edit';
+    const movement=String(h.movementType||'').toUpperCase();
+    const kind=movement==='CUSTOMER_BORROW_CLEAR'?'Borrow Clear':movement==='CUSTOMER_BORROW'?'Borrow In':'Batch Edit';
     return '<div class="bb-adjust-history-line"><div><strong>'+esc(h.productName||h.productCode)+'</strong><small>'+kind+' · '+stamp+'</small></div>'+
       '<div class="bb-adjust-history-in">'+(num(h.adjustmentInQty)>0?'+ '+qty(h.adjustmentInQty)+' '+unit:'—')+'</div>'+
       '<div class="bb-adjust-history-out">'+(num(h.adjustmentOutQty)>0?'− '+qty(h.adjustmentOutQty)+' '+unit:'—')+'</div>'+
