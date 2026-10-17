@@ -357,7 +357,7 @@ body.bb-stock-mobile-progress .bb-selling-progress-track{height:12px}
       <div class="table-wrap"><table id="itemTable" class="table"><thead id="itemHead"></thead><tbody id="itemRows"></tbody></table></div>
       <details id="bbAdjustmentHistory" class="bb-adjust-history" hidden>
         <summary id="bbAdjustmentHistoryLabel">Batch Adjustment History</summary>
-        <div class="bb-adjust-history-note">Batch corrections only · includes products now at zero stock. Regular sales and back sales are not included.</div>
+        <div class="bb-adjust-history-note">Batch corrections and Borrow Clear outflows · includes products now at zero stock. Regular sales and back sales are not included.</div>
         <div id="bbAdjustmentHistoryRows" class="bb-adjust-history-lines"></div>
       </details>
     </section>
@@ -414,8 +414,11 @@ function bbGroupUnit(rows){
 }
 function bbOriginalAssigned(row){
   // Assigned Qty in the underlying snapshot already includes adjustments.
-  // Remove net adjustments only for this presentation column.
-  return Math.max(0,num(row?.assignedQty)-num(row?.adjustmentInQty)+num(row?.adjustmentOutQty));
+  // Only Batch Edit adjustments change issued/assigned Qty. Borrow Clear
+  // already decreases pending stock via other_out_qty; it does NOT change issued.
+  // Exclude its included Adjustment OUT from the original assigned calculation.
+  return Math.max(0,num(row?.assignedQty)-num(row?.adjustmentInQty)
+    +num(row?.adjustmentOutQty)-num(row?.borrowClearOutQty));
 }
 function bbMobileStockRow(cls,name,row,unit,attrs=''){
   if(row?.adjustmentOnly)name+='<small class="bb-adjusted-zero">Adjusted · 0 current stock</small>';
@@ -459,6 +462,7 @@ function renderMobileStaffStock(){
         assignedQty:bbSumRows(members,'assignedQty'),
         adjustmentInQty:bbSumRows(members,'adjustmentInQty'),
         adjustmentOutQty:bbSumRows(members,'adjustmentOutQty'),
+        borrowClearOutQty:bbSumRows(members,'borrowClearOutQty'),
         soldQty:bbSumRows(members,'soldQty'),
         damagedQty:bbSumRows(members,'damagedQty'),
         damageReturnQty:bbSumRows(members,'damageReturnQty'),
@@ -781,11 +785,14 @@ function renderAdjustmentHistory(){
   if(details.hidden){body.replaceChildren();return}
   const adjustments=history.filter(x=>num(x.adjustmentInQty)>0||num(x.adjustmentOutQty)>0);
   const totalIn=num(data?.adjustmentSummary?.inQty),totalOut=num(data?.adjustmentSummary?.outQty);
-  label.textContent='Batch Adjustment History ('+adjustments.length+' lines) · IN '+qty(totalIn)+' / OUT '+qty(totalOut);
+  label.textContent='Batch Adjustment / Borrow Clear History ('+adjustments.length+' lines) · IN '+qty(totalIn)+' / OUT '+qty(totalOut);
   body.innerHTML=adjustments.map(h=>{
-    const stamp=h.createdAt?new Date(h.createdAt).toLocaleString('en-GB',{day:'2-digit',month:'short',year:'numeric',hour:'2-digit',minute:'2-digit'}):'-';
+    const stamp=h.activityDate
+      ? esc(h.activityDate)+' · '+(h.createdAt?new Date(h.createdAt).toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit'}):'')
+      : (h.createdAt?new Date(h.createdAt).toLocaleString('en-GB',{day:'2-digit',month:'short',year:'numeric',hour:'2-digit',minute:'2-digit'}):'-');
     const unit=esc(bbShortUnit(h.unit));
-    return '<div class="bb-adjust-history-line"><div><strong>'+esc(h.productName||h.productCode)+'</strong><small>'+esc(stamp)+'</small></div>'+
+    const kind=String(h.movementType||'').toUpperCase()==='CUSTOMER_BORROW_CLEAR'?'Borrow Clear':'Batch Edit';
+    return '<div class="bb-adjust-history-line"><div><strong>'+esc(h.productName||h.productCode)+'</strong><small>'+kind+' · '+stamp+'</small></div>'+
       '<div class="bb-adjust-history-in">'+(num(h.adjustmentInQty)>0?'+ '+qty(h.adjustmentInQty)+' '+unit:'—')+'</div>'+
       '<div class="bb-adjust-history-out">'+(num(h.adjustmentOutQty)>0?'− '+qty(h.adjustmentOutQty)+' '+unit:'—')+'</div>'+
       '<div class="bb-adjust-history-reason">'+esc(h.reason||'Batch correction')+'</div></div>';
@@ -871,6 +878,7 @@ async function bbAddBatchAdjustmentColumns(report){
     const adjustment=totals.get(clean(item.productCode))||{};
     return withDamage({...item,adjustmentInQty:num(adjustment.adjustmentInQty),
       adjustmentOutQty:num(adjustment.adjustmentOutQty),
+      borrowClearOutQty:num(adjustment.borrowClearOutQty),
       lastAdjustmentAt:adjustment.lastAdjustmentAt||null});
   });
   // Preserve the usual live-stock list, but also show corrected products
@@ -887,6 +895,7 @@ async function bbAddBatchAdjustmentColumns(report){
       damagedQty:num(correction.damagedQty),currentQty:0,
       adjustmentInQty:num(correction.adjustmentInQty),
       adjustmentOutQty:num(correction.adjustmentOutQty),
+      borrowClearOutQty:num(correction.borrowClearOutQty),
       lastAdjustmentAt:correction.lastAdjustmentAt||null,adjustmentOnly:true
     }));
     visibleCodes.add(code);
@@ -909,6 +918,7 @@ async function bbAddBatchAdjustmentColumns(report){
       damagedQty:num(line.damagedQty),currentQty:num(line.currentQty),
       adjustmentInQty:num(adjustment.adjustmentInQty),
       adjustmentOutQty:num(adjustment.adjustmentOutQty),
+      borrowClearOutQty:num(adjustment.borrowClearOutQty),
       damageOnly:true
     }));
     visibleCodes.add(code);
