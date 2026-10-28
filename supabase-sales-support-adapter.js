@@ -15,6 +15,17 @@
   let bootstrapCache=null;
   let bootstrapAt=0;
   let bootstrapUserId='';
+  function saveToMobileOffline(key,value){
+    // Same-origin embedded calculator: share existing mobile account-scoped IndexedDB.
+    // Never create a second copy in unauthenticated or cross-origin contexts.
+    try{
+      if(window.parent===window||!value?.success)return;
+      const parentApi=window.parent.BBMobileOfflineWorkspaceV1;
+      if(!parentApi||parentApi.currentUserId()!==sessionUserId(readSession()))return;
+      void parentApi.write(key,value);
+    }catch(_){}
+  }
+
 
   function readSession(){
     try{return JSON.parse(localStorage.getItem(SESSION_KEY)||'null')}
@@ -128,6 +139,7 @@
     }
 
     bootstrapCache=await rpc('bb_sales_support_bootstrap');
+    saveToMobileOffline('offline-calc-bootstrap',bootstrapCache);
     bootstrapAt=now;
     bootstrapUserId=currentUserId;
     return bootstrapCache;
@@ -151,9 +163,11 @@
     if(!customer){
       throw new Error('Customer was not found in Supabase.');
     }
-    return rpc('bb_sales_support_customer_prices',{
+    const prices=await rpc('bb_sales_support_customer_prices',{
       p_customer_id:String(customer.customerId||'')
     });
+    saveToMobileOffline('calc-price::'+String(customer.customerId||''),prices);
+    return prices;
   }
 
   async function jsonp(_url,params={}){
