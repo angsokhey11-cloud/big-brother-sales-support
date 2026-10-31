@@ -32,6 +32,23 @@ button:disabled{opacity:.6;cursor:wait}.actions{display:flex;gap:9px;align-items
 const URL='https://sjfhlaclgmkwwofzstok.supabase.co',KEY='sb_publishable_w762jR65CWwlO30fKQsYOw_6L9grx8S',SKEY='BB_SUPABASE_DEV_SESSION_V1';
 const $=id=>document.getElementById(id),num=x=>Number(x)||0,esc=x=>String(x??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 let batches=[],items=[],loading=false,session,isAdmin=false;
+const DEFAULT_PRODUCT_ORDER=[
+ 'KIR3-2L','KIRB-2L','KIR0-830','KIR3-830',
+ 'FF-2L','AF-2L','VP-2L','OM-2L',
+ 'GF-190','GF-1L','GFJ-1L',
+ 'KIRP-Y135','KIRS-Y135','KIRV-Y135',
+ 'CH-O220','CHM-220','CHP-220','CHS-220','CHT-220'
+];
+const DEFAULT_PRODUCT_RANK=new Map(DEFAULT_PRODUCT_ORDER.map((code,i)=>[code,i]));
+function productCompare(a,b){
+ const aCode=String(a?.productCode||'').trim().toUpperCase(),bCode=String(b?.productCode||'').trim().toUpperCase();
+ const aRank=DEFAULT_PRODUCT_RANK.get(aCode)??9999,bRank=DEFAULT_PRODUCT_RANK.get(bCode)??9999;
+ return aRank-bRank||String(a?.productName||aCode).localeCompare(String(b?.productName||bCode))||aCode.localeCompare(bCode);
+}
+function batchCompare(a,b){
+ return String(a.batchDate||'9999-12-31').localeCompare(String(b.batchDate||'9999-12-31'))||
+  String(a.batchId||'').localeCompare(String(b.batchId||''),undefined,{numeric:true});
+}
 function batchDateText(value){
  const m=String(value||'').match(/^(\d{4})-(\d{2})-(\d{2})/);
  if(!m)return '-';
@@ -61,13 +78,26 @@ async function load(preserve=true){
   isAdmin=profile.isAdmin===true;
   const result=await rpc(isAdmin?'bb_sales_support_admin_your_stock':'bb_sales_support_my_stock',{p_batch_id:preserve?batch||null:null});
   if(!result?.success)throw Error('Unable to load assigned batches.');
-  batches=result.batches||[];const selected=result.selectedBatch;
+  batches=Array.isArray(result.batches)?result.batches.slice().sort(batchCompare):[];
+  const nextBatchId=preserve&&batches.some(b=>b.batchId===batch)?batch:(batches[0]?.batchId||'');
+  // One scoped read-only request counts successful submissions, not product rows.
+  let reportCounts={},countsAvailable=true;
+  if(batches.length){
+   try{
+    reportCounts=await rpc('bb_sales_support_batch_damage_report_counts',{p_batch_ids:batches.map(b=>b.batchId)});
+   }catch(_){countsAvailable=false}
+  }
   $('batch').previousElementSibling.textContent=isAdmin?'All Pending Salesman Batches':'Your Pending Batch';
-  $('batch').innerHTML=batches.map(b=>'<option value="'+esc(b.batchId)+'">'+esc(b.batchId)+' · '+esc(batchDateText(b.batchDate))+' · '+esc(b.salesmanName||'')+' · '+esc(b.locationName||b.locationCode||'')+'</option>').join('')||'<option value="">No pending batches</option>';
-  $('batch').value=selected?.batchId||'';
+  $('batch').innerHTML=batches.map(b=>{
+   const count=Number(reportCounts?.[b.batchId]);
+   const reported=countsAvailable&&Number.isInteger(count)&&count>=0?String(count):'—';
+   const salesman=b.salesmanName?b.salesmanName+' · ':'';
+   return '<option value="'+esc(b.batchId)+'">'+esc(b.batchId)+' · '+esc(batchDateText(b.batchDate))+' · '+esc(salesman)+esc(b.locationName||b.locationCode||'')+' (Reported '+reported+')</option>';
+  }).join('')||'<option value="">No pending batches</option>';
+  $('batch').value=nextBatchId;
   $('batch').disabled=!batches.length;
-  await display(selected?.batchId||'');
-  status(isAdmin?"Admin mode: select any pending batch and report damage on its salesman's behalf.":'Select products and enter new damage quantities.','ok');
+  await display(nextBatchId);
+  status(countsAvailable?(isAdmin?"Admin mode: select any pending batch and report damage on its salesman's behalf.":'Select products and enter new damage quantities.'):'Damage counts unavailable. Sync the Report Damage SQL migration to Local Brain, then refresh.',countsAvailable?'ok':'error');
  }catch(e){status(e.message||String(e),'error')}finally{loading=false;$('refresh').disabled=false}
 }
 async function display(batchId){
@@ -75,12 +105,12 @@ async function display(batchId){
  if(!batchId){$('context').hidden=true;$('products').textContent='No open assigned batch.';$('pending').textContent='';return}
  const [result,damaged]=await Promise.all([rpc(isAdmin?'bb_sales_support_admin_your_stock':'bb_sales_support_my_stock',{p_batch_id:batchId}),rpc('bb_batch_damage_pending',{p_batch_id:batchId})]);
  if(result.selectedBatch?.batchId!==batchId)throw Error('This batch is no longer assigned/open.');
- items=Array.isArray(result.items)?result.items:[];
+ items=Array.isArray(result.items)?result.items.slice().sort(productCompare):[];
  const currentDamage=new Map((damaged.items||[]).map(x=>[String(x.productCode||''),num(x.currentDamageQty)]));
  $('context').hidden=false;
  $('context').textContent=(damaged.salesmanName||'')+' · '+(damaged.locationName||'')+' · Batch Date: '+batchDateText(result.selectedBatch.batchDate);
  $('products').innerHTML=items.map((p,i)=>'<div class="line"><div class="name"><strong>'+esc(p.productName||p.productCode)+'</strong><small>'+esc(p.productCode)+'</small></div><div class="reported num">'+num(p.currentQty).toLocaleString('en-US')+'</div><div class="reported num" title="Previously reported damage awaiting warehouse return">'+num(currentDamage.get(String(p.productCode||''))).toLocaleString('en-US')+'</div><input data-i="'+i+'" type="number" inputmode="decimal" min="0" step="0.0001" max="'+num(p.currentQty)+'" value="" placeholder="0" aria-label="Damage quantity for '+esc(p.productName||p.productCode)+'"></div>').join('')||'<p class="muted">No remaining sellable products for this batch.</p>';
- const rows=damaged.items||[];
+ const rows=Array.isArray(damaged.items)?damaged.items.slice().sort(productCompare):[];
  $('pending').innerHTML=rows.length?rows.map(x=>'<div class="line"><strong>'+esc(x.productName||x.productCode)+'</strong><span class="muted">Reported '+num(x.reportedQty)+'</span><strong class="reported num">Awaiting '+num(x.currentDamageQty)+'</strong></div>').join(''):'No damage awaiting warehouse return.';
  $('submit').disabled=!items.length;
 }
