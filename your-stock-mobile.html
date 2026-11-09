@@ -13,7 +13,7 @@ html,body{margin:0;width:100%;height:100%;overflow:hidden;background:#f4f7fb;fon
 </head>
 <body>
 <div id="boot">Loading Your Stock…</div>
-<iframe id="stockFrame" src="your-stock.html?embed=1&mobileSkin=1&v=20261017-date-display1" title="Your Stock"></iframe>
+<iframe id="stockFrame" src="your-stock.html?embed=1&mobileSkin=1&v=20261110-carryforward1" title="Your Stock"></iframe>
 <script>
 (function(){
 'use strict';
@@ -205,7 +205,7 @@ function rowHtml(cls,name,item,unit,extra=''){
   if(item&&item.adjustmentOnly)name+='<small class="bb-adjusted-zero">Adjusted · 0 current stock</small>';
   return '<tr class="'+cls+'" '+extra+'>'+
     '<td>'+name+'</td>'+
-    '<td>'+escText(fmtWithUnit(Math.max(0,qnum(item.assignedQty)-qnum(item.adjustmentInQty)+qnum(item.adjustmentOutQty)),unit))+'</td>'+
+    '<td>'+escText(fmtWithUnit(Math.max(0,qnum(item.assignedQty)-qnum(item.adjustmentInQty)+qnum(item.adjustmentOutQty)-qnum(item.borrowClearOutQty)-qnum(item.transferOutQty)),unit))+'</td>'+
     '<td>'+escText(fmtWithUnit(item.adjustmentInQty,unit))+'</td>'+
     '<td>'+escText(fmtWithUnit(item.adjustmentOutQty,unit))+'</td>'+
     '<td>'+escText(fmtWithUnit(item.soldQty,unit))+'</td>'+
@@ -278,6 +278,8 @@ function renderMobileItems(){
         assignedQty:sum(members,'assignedQty'),
         adjustmentInQty:sum(members,'adjustmentInQty'),
         adjustmentOutQty:sum(members,'adjustmentOutQty'),
+        borrowClearOutQty:sum(members,'borrowClearOutQty'),
+        transferOutQty:sum(members,'transferOutQty'),
         soldQty:sum(members,'soldQty'),
         damagedQty:sum(members,'damagedQty'),
         damageReturnQty:sum(members,'damageReturnQty'),
