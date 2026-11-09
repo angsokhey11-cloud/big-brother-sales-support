@@ -357,7 +357,7 @@ body.bb-stock-mobile-progress .bb-selling-progress-track{height:12px}
       <div class="table-wrap"><table id="itemTable" class="table"><thead id="itemHead"></thead><tbody id="itemRows"></tbody></table></div>
       <details id="bbAdjustmentHistory" class="bb-adjust-history" hidden>
         <summary id="bbAdjustmentHistoryLabel">Batch Adjustment History</summary>
-        <div class="bb-adjust-history-note">Batch corrections, Borrow In and Borrow Clear movements · includes products now at zero stock. Regular sales and back sales are not included.</div>
+        <div class="bb-adjust-history-note">Batch corrections, Borrow movements and direct Batch Transfers · includes products now at zero stock. Regular sales and back sales are not included.</div>
         <div id="bbAdjustmentHistoryRows" class="bb-adjust-history-lines"></div>
       </details>
     </section>
@@ -413,12 +413,11 @@ function bbGroupUnit(rows){
   return units.length===1?units[0]:'unit';
 }
 function bbOriginalAssigned(row){
-  // Assigned Qty in the underlying snapshot already includes adjustments.
-  // Only Batch Edit adjustments change issued/assigned Qty. Borrow Clear
-  // already decreases pending stock via other_out_qty; it does NOT change issued.
-  // Exclude its included Adjustment OUT from the original assigned calculation.
+  // Underlying issued_qty includes Batch Edit IN/OUT and Existing-Batch transfer IN,
+  // but NOT Borrow Clear / transfer OUT (both reduce pending via other_out_qty).
+  // Reclassify those movements into Adjustment columns without mutating ledger stock.
   return Math.max(0,num(row?.assignedQty)-num(row?.adjustmentInQty)
-    +num(row?.adjustmentOutQty)-num(row?.borrowClearOutQty));
+    +num(row?.adjustmentOutQty)-num(row?.borrowClearOutQty)-num(row?.transferOutQty));
 }
 function bbMobileStockRow(cls,name,row,unit,attrs=''){
   if(row?.adjustmentOnly)name+='<small class="bb-adjusted-zero">Adjusted · 0 current stock</small>';
@@ -463,6 +462,7 @@ function renderMobileStaffStock(){
         adjustmentInQty:bbSumRows(members,'adjustmentInQty'),
         adjustmentOutQty:bbSumRows(members,'adjustmentOutQty'),
         borrowClearOutQty:bbSumRows(members,'borrowClearOutQty'),
+        transferOutQty:bbSumRows(members,'transferOutQty'),
         soldQty:bbSumRows(members,'soldQty'),
         damagedQty:bbSumRows(members,'damagedQty'),
         damageReturnQty:bbSumRows(members,'damageReturnQty'),
@@ -785,18 +785,29 @@ function renderAdjustmentHistory(){
   if(details.hidden){body.replaceChildren();return}
   const adjustments=history.filter(x=>num(x.adjustmentInQty)>0||num(x.adjustmentOutQty)>0);
   const totalIn=num(data?.adjustmentSummary?.inQty),totalOut=num(data?.adjustmentSummary?.outQty);
-  label.textContent='Batch Adjustment / Borrow History ('+adjustments.length+' lines) · IN '+qty(totalIn)+' / OUT '+qty(totalOut);
+  const helper=details.querySelector('.bb-adjust-history-note');
+  if(helper&&data?.transferHistoryWarning)helper.textContent='Note: '+data.transferHistoryWarning+' · Apply the Local Brain transfer-history SQL to see carry-forward amounts.';
+  label.textContent='Batch Adjustment / Transfer / Borrow History ('+adjustments.length+' lines) · IN '+qty(totalIn)+' / OUT '+qty(totalOut);
   body.innerHTML=adjustments.map(h=>{
     const stamp=h.activityDate
       ? esc(dateText(h.activityDate))+' · '+(h.createdAt?new Date(h.createdAt).toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit'}):'')
       : (h.createdAt?esc(dateText(h.createdAt))+' · '+new Date(h.createdAt).toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit'}):'-');
     const unit=esc(bbShortUnit(h.unit));
     const movement=String(h.movementType||'').toUpperCase();
-    const kind=movement==='CUSTOMER_BORROW_CLEAR'?'Borrow Clear':movement==='CUSTOMER_BORROW'?'Borrow In':'Batch Edit';
+    const transfer=movement==='BATCH_TRANSFER';
+    const kind=transfer?(h.direction==='OUT'?'Batch Transfer OUT':'Batch Transfer IN')
+      :movement==='CUSTOMER_BORROW_CLEAR'?'Borrow Clear':movement==='CUSTOMER_BORROW'?'Borrow In':'Batch Edit';
+    let description=h.reason||'Batch correction';
+    if(transfer){
+      description+=' · Movement '+(h.movementId||'-');
+      if(h.controllerName)description+=' · By '+h.controllerName;
+      description+=' · Purchased '+qty(h.purchasedQty||0);
+      if(num(h.zeroCostQty)>0)description+=' · Zero-Cost '+qty(h.zeroCostQty);
+    }
     return '<div class="bb-adjust-history-line"><div><strong>'+esc(h.productName||h.productCode)+'</strong><small>'+kind+' · '+stamp+'</small></div>'+
       '<div class="bb-adjust-history-in">'+(num(h.adjustmentInQty)>0?'+ '+qty(h.adjustmentInQty)+' '+unit:'—')+'</div>'+
       '<div class="bb-adjust-history-out">'+(num(h.adjustmentOutQty)>0?'− '+qty(h.adjustmentOutQty)+' '+unit:'—')+'</div>'+
-      '<div class="bb-adjust-history-reason">'+esc(h.reason||'Batch correction')+'</div></div>';
+      '<div class="bb-adjust-history-reason">'+esc(description)+'</div></div>';
   }).join('');
 }
 function render(){
@@ -855,54 +866,69 @@ async function fetchStockData(){
 }
 async function bbAddBatchAdjustmentColumns(report){
   if(!report?.selectedBatch?.batchId||!Array.isArray(report.items))return report;
-  const response=await rpc('bb_sales_support_batch_adjustment_totals',{
-    p_batch_id:report.selectedBatch.batchId
-  });
-  if(!response?.success||response.batchId!==report.selectedBatch.batchId||
-     !Array.isArray(response.items))throw new Error('Batch adjustment details could not be loaded.');
-  const totals=new Map(response.items.map(item=>[clean(item.productCode),item]));
+  const batchId=report.selectedBatch.batchId;
+  const [response,transfers]=await Promise.all([
+    rpc('bb_sales_support_batch_adjustment_totals',{p_batch_id:batchId}),
+    // Old Local Brain databases may not yet have the read-only transfer history RPC.
+    // Keep the existing stock report usable, but show a setup warning until it is migrated.
+    rpc('bb_sales_support_batch_carryforward_totals',{p_batch_id:batchId})
+      .catch(error=>({success:false,batchId,items:[],history:[],warning:error?.message||String(error)}))
+  ]);
+  if(!response?.success||response.batchId!==batchId||!Array.isArray(response.items))
+    throw new Error('Batch adjustment details could not be loaded.');
+  if(transfers.success&&(transfers.batchId!==batchId||!Array.isArray(transfers.items)))
+    throw new Error('Batch transfer history did not match the selected Batch.');
+  report.transferHistoryWarning=transfers.success?'':(transfers.warning||'Batch Transfer history is unavailable on this server.');
+  const adjustments=new Map(response.items.map(item=>[clean(item.productCode),item]));
+  const carry=new Map((Array.isArray(transfers.items)?transfers.items:[])
+    .map(item=>[clean(item.productCode),item]));
   const damageReturns=new Map((Array.isArray(response.damageReturns)?response.damageReturns:[])
     .map(item=>[clean(item.productCode),num(item.damageReturnQty)]));
+  function combined(code){
+    const a=adjustments.get(code)||{},t=carry.get(code)||{};
+    return {
+      adjustmentInQty:num(a.adjustmentInQty)+num(t.transferInQty),
+      adjustmentOutQty:num(a.adjustmentOutQty)+num(t.transferOutQty),
+      borrowClearOutQty:num(a.borrowClearOutQty),
+      transferInQty:num(t.transferInQty),
+      transferOutQty:num(t.transferOutQty),
+      lastAdjustmentAt:t.lastTransferAt||a.lastAdjustmentAt||null
+    };
+  }
   function withDamage(item){
     const returned=damageReturns.get(clean(item.productCode))||0;
-    // Batch Damage key-in is warehouse receipt under this workflow.
-    // Presentation only: do not subtract it from current sellable stock again.
     return {...item,damageReturnQty:returned,
       currentDamageQty:Math.max(0,num(item.damagedQty)-returned)};
   }
-  report.adjustmentHistory=Array.isArray(response.history)?response.history:[];
+  report.adjustmentHistory=[
+    ...(Array.isArray(response.history)?response.history:[]),
+    ...(Array.isArray(transfers.history)?transfers.history:[])
+  ].sort((a,b)=>Date.parse(b.createdAt||b.activityDate||0)-Date.parse(a.createdAt||a.activityDate||0));
   report.adjustmentSummary={
-    inQty:response.items.reduce((sum,x)=>sum+num(x.adjustmentInQty),0),
-    outQty:response.items.reduce((sum,x)=>sum+num(x.adjustmentOutQty),0)
+    inQty:response.items.reduce((sum,x)=>sum+num(x.adjustmentInQty),0)+
+      (Array.isArray(transfers.items)?transfers.items:[]).reduce((sum,x)=>sum+num(x.transferInQty),0),
+    outQty:response.items.reduce((sum,x)=>sum+num(x.adjustmentOutQty),0)+
+      (Array.isArray(transfers.items)?transfers.items:[]).reduce((sum,x)=>sum+num(x.transferOutQty),0)
   };
-  report.items=report.items.map(item=>{
-    const adjustment=totals.get(clean(item.productCode))||{};
-    return withDamage({...item,adjustmentInQty:num(adjustment.adjustmentInQty),
-      adjustmentOutQty:num(adjustment.adjustmentOutQty),
-      borrowClearOutQty:num(adjustment.borrowClearOutQty),
-      lastAdjustmentAt:adjustment.lastAdjustmentAt||null});
-  });
-  // Preserve the usual live-stock list, but also show corrected products
-  // whose pending stock reached zero (including fully removed batch lines).
+  report.items=report.items.map(item=>withDamage({...item,...combined(clean(item.productCode))}));
+  // Keep transferred or adjusted products visible even if their live stock is zero.
   const visibleCodes=new Set(report.items.map(item=>clean(item.productCode)));
-  for(const correction of response.items){
-    const code=clean(correction.productCode);
-    if(!code||visibleCodes.has(code)||
-       num(correction.adjustmentInQty)+num(correction.adjustmentOutQty)<=0)continue;
+  for(const code of new Set([...adjustments.keys(),...carry.keys()])){
+    if(!code||visibleCodes.has(code))continue;
+    const correction=combined(code);
+    if(correction.adjustmentInQty+correction.adjustmentOutQty<=0)continue;
+    const old=adjustments.get(code)||{},transfer=carry.get(code)||{};
+    const baseline=Object.keys(old).length?old:transfer;
     report.items.push(withDamage({
-      batchId:report.selectedBatch.batchId,productCode:code,
-      productName:correction.productName||code,unit:correction.unit||'',
-      assignedQty:num(correction.assignedQty),soldQty:num(correction.soldQty),
-      damagedQty:num(correction.damagedQty),currentQty:0,
-      adjustmentInQty:num(correction.adjustmentInQty),
-      adjustmentOutQty:num(correction.adjustmentOutQty),
-      borrowClearOutQty:num(correction.borrowClearOutQty),
-      lastAdjustmentAt:correction.lastAdjustmentAt||null,adjustmentOnly:true
+      batchId,productCode:code,
+      productName:baseline.productName||code,unit:baseline.unit||'',
+      assignedQty:num(baseline.assignedQty),soldQty:num(baseline.soldQty),
+      damagedQty:num(baseline.damagedQty),currentQty:num(baseline.currentQty),
+      ...correction,adjustmentOnly:true
     }));
     visibleCodes.add(code);
   }
-  // A fully damaged product can have zero sellable stock. Preserve its
-  // received/pending damage line in this report for warehouse transparency.
+  // Include any product that is fully damaged, as before.
   const damageDetails=new Map();
   for(const row of [...(Array.isArray(response.damageReturns)?response.damageReturns:[]),
                     ...(Array.isArray(response.damagePending)?response.damagePending:[])]){
@@ -911,16 +937,12 @@ async function bbAddBatchAdjustmentColumns(report){
   }
   for(const [code,line] of damageDetails){
     if(visibleCodes.has(code))continue;
-    const adjustment=totals.get(code)||{};
     report.items.push(withDamage({
-      batchId:report.selectedBatch.batchId,productCode:code,
+      batchId,productCode:code,
       productName:line.productName||code,unit:line.unit||'',
       assignedQty:num(line.assignedQty),soldQty:num(line.soldQty),
       damagedQty:num(line.damagedQty),currentQty:num(line.currentQty),
-      adjustmentInQty:num(adjustment.adjustmentInQty),
-      adjustmentOutQty:num(adjustment.adjustmentOutQty),
-      borrowClearOutQty:num(adjustment.borrowClearOutQty),
-      damageOnly:true
+      ...combined(code),damageOnly:true
     }));
     visibleCodes.add(code);
   }
