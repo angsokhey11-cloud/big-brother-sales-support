@@ -36,6 +36,10 @@ BEGIN
     'purchasedTransferOutQty',round(v.purchased_out_qty,6),
     'zeroCostTransferOutQty',round(v.zero_out_qty,6),
     'lastTransferAt',v.last_transfer_at,
+    'assignedQty',round(coalesce(i.issued_qty,0),6),
+    'soldQty',round(coalesce(i.sold_qty_snapshot,0),6),
+    'damagedQty',round(coalesce(i.damaged_qty,0),6),
+    'currentQty',round(greatest(coalesce(i.pending_qty_snapshot,0),0),6),
     'productName',coalesce(p.product_name,v.product_name,v.product_code),
     'unit',coalesce(p.unit,v.unit,'')
   ) ORDER BY v.product_code),'[]'::jsonb)
@@ -59,6 +63,7 @@ BEGIN
       AND a.product_code IS NOT NULL
     GROUP BY a.product_code
   ) v
+  LEFT JOIN public.stock_batch_items i ON i.batch_id=v_batch_id AND i.product_code=v.product_code
   LEFT JOIN public.products p ON p.product_code=v.product_code;
 
   SELECT coalesce(jsonb_agg(jsonb_build_object(
