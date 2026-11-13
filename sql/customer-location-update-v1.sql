@@ -7,7 +7,7 @@ CREATE OR REPLACE FUNCTION public.bb_sales_support_customer_location_target(p_cu
  RETURNS jsonb
  LANGUAGE plpgsql
  STABLE SECURITY DEFINER
- SET search_path TO 'public'
+ SET search_path TO ''
 AS $function$
 declare v_customer jsonb;
 begin
@@ -42,7 +42,7 @@ CREATE OR REPLACE FUNCTION public.bb_sales_support_update_customer_location(p_pa
  RETURNS jsonb
  LANGUAGE plpgsql
  SECURITY DEFINER
- SET search_path TO 'public'
+ SET search_path TO ''
 AS $function$
 declare
   v_id text := trim(coalesce(p_payload->>'customerId',''));
