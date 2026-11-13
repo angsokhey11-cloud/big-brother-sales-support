@@ -13,5 +13,7 @@ async function ensureSession(){session=readSession();if(!session?.access_token)t
 async function rpc(fn,args={}){await ensureSession();const call=()=>fetch(URL+'/rest/v1/rpc/'+fn,{method:'POST',headers:{apikey:KEY,Authorization:'Bearer '+session.access_token,'Content-Type':'application/json'},body:JSON.stringify(args||{}),cache:'no-store'});let r=await call();if(r.status===401){await refreshSession();r=await call()}return parse(r)}
 async function bootstrap(){return rpc('bb_sales_support_add_customer_bootstrap')}
 async function save(payload){return rpc('bb_sales_support_add_customer',{p_payload:payload||{}})}
-window.BBAddCustomerAdapter={ensureSession,rpc,bootstrap,save};
+async function getLocationTarget(customerId){return rpc('bb_sales_support_customer_location_target',{p_customer_id:String(customerId||'').trim()})}
+async function updateLocation(payload){return rpc('bb_sales_support_update_customer_location',{p_payload:payload||{}})}
+window.BBAddCustomerAdapter={ensureSession,rpc,bootstrap,save,getLocationTarget,updateLocation};
 })();
