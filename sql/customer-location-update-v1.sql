@@ -50,6 +50,8 @@ declare
   v_lng numeric;
   v_accuracy numeric;
   v_note text;
+  v_phone text;
+  v_address text;
   v_location text;
   v_customer jsonb;
 begin
@@ -76,6 +78,14 @@ begin
   if p_payload ? 'deliveryLocationNote' then
     v_note := left(coalesce(p_payload->>'deliveryLocationNote',''),2000);
   end if;
+  if p_payload ? 'phone' then
+    v_phone := trim(coalesce(p_payload->>'phone',''));
+    if length(v_phone)>120 then raise exception 'Phone cannot exceed 120 characters'; end if;
+  end if;
+  if p_payload ? 'address' then
+    v_address := trim(coalesce(p_payload->>'address',''));
+    if length(v_address)>2000 then raise exception 'Address cannot exceed 2000 characters'; end if;
+  end if;
   select c.location_code into v_location
   from public.customers c
   where c.customer_id=v_id and coalesce(c.active,true)=true
@@ -88,7 +98,9 @@ begin
   end if;
 
   update public.customers c
-     set latitude=v_lat,
+     set phone=case when p_payload ? 'phone' then nullif(v_phone,'') else c.phone end,
+         address=case when p_payload ? 'address' then nullif(v_address,'') else c.address end,
+         latitude=v_lat,
          longitude=v_lng,
          google_maps_link='https://www.google.com/maps?q='||v_lat::text||','||v_lng::text,
          delivery_location_note=case when p_payload ? 'deliveryLocationNote'
