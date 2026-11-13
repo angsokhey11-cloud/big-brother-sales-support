@@ -211,7 +211,7 @@ async function prepareLocationUpdate(){
   const heading=document.querySelector('.hero h1');
   if(heading)heading.textContent='📍 Add Customer Location';
   const subtitle=document.querySelector('.hero p');
-  if(subtitle)subtitle.textContent='Use the existing customer record. Sync device GPS to add the missing delivery map location. Customer identity and selling prices will not change.';
+  if(subtitle)subtitle.textContent='Update the existing customer phone number, address and missing GPS map location together. Customer ID, name, assigned sales location and prices remain protected.';
   try{
     const result=await window.BBAddCustomerAdapter.getLocationTarget(targetCustomerId);
     if(!result?.success||!result.customer)throw new Error('Customer details could not be loaded.');
@@ -222,7 +222,11 @@ async function prepareLocationUpdate(){
     $('address').value=clean(customer.address);
     $('locationCode').value=clean(customer.locationCode);
     $('deliveryNote').value=clean(customer.deliveryLocationNote);
-    for(const id of ['customerName','phone','address'])$(id).readOnly=true;
+    $('customerName').readOnly=true;
+    $('phone').readOnly=false;
+    $('address').readOnly=false;
+    $('phone').maxLength=120;
+    $('address').maxLength=2000;
     $('locationCode').disabled=true;
     $('profile').textContent='Updating saved GPS for '+clean(customer.customerId)+' · '+clean(customer.name)+' · '+clean(customer.locationCode);
     const title=document.querySelector('.card-head strong');
@@ -253,10 +257,15 @@ async function saveCustomer(){
     const c=bestPosition?.coords||window.BBAddCustomerMobileGps?.getCoords?.();
     if(!c)return showMessage('Sync Current Device Location before saving.');
     if(Number(c.accuracy)>50)return showMessage('GPS accuracy must be within 50 meters. Move nearer the customer and sync again.');
+    const phone=clean($('phone').value);
+    const address=clean($('address').value);
+    if(phone.length>120||address.length>2000)return showMessage('Phone must be at most 120 characters and address at most 2000 characters.');
     const btn=$('saveBtn');btn.disabled=true;btn.textContent='Saving location…';
     try{
       const payload={
         customerId:targetCustomer.customerId,
+        phone,
+        address,
         latitude:Number(c.latitude).toFixed(7),
         longitude:Number(c.longitude).toFixed(7),
         gpsAccuracyMeters:Math.round(Number(c.accuracy)||0),
@@ -265,6 +274,8 @@ async function saveCustomer(){
       const result=await window.BBAddCustomerAdapter.updateLocation(payload);
       if(!result?.success||!result.customer)throw new Error('Customer location update failed.');
       const updated=result.customer;
+      $('phone').value=clean(updated.phone);
+      $('address').value=clean(updated.address);
       locationSaved=true;
       $('resultId').textContent=updated.customerId||targetCustomer.customerId;
       $('resultName').textContent=updated.name||targetCustomer.name;
@@ -272,7 +283,7 @@ async function saveCustomer(){
       $('resultGps').textContent=String(updated.latitude)+', '+String(updated.longitude);
       $('result').querySelector('h3').textContent='Customer location saved ✓';
       $('result').classList.add('show');
-      showMessage('GPS location saved for existing customer '+updated.customerId+'. No duplicate customer was created.','success');
+      showMessage('Phone, address and GPS location saved for '+updated.customerId+'. No duplicate customer created.','success');
       try{
         // The next visit to Your Customer must not show the previous cached map status.
         for(let i=localStorage.length-1;i>=0;i--){
