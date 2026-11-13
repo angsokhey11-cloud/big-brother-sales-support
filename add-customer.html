@@ -125,6 +125,7 @@ function consumeLocationTarget(){
   return '';
 }
 const targetCustomerId=consumeLocationTarget();
+window.BBAddCustomerLocationMode=Boolean(targetCustomerId);
 let targetCustomer=null;
 let locationSaved=false;
 
