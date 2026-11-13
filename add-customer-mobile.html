@@ -336,6 +336,11 @@ function installMobileGpsGuard(doc){
       resetMobileGps(doc);innerMessage(doc,'');
       return;
     }
+    if(btn.id==='clearBtn'&&win.BBAddCustomerLocationMode){
+      e.preventDefault();e.stopImmediatePropagation();
+      resetMobileGps(doc);innerMessage(doc,'');
+      return;
+    }
     if(btn.id==='openMapBtn'&&mobileGps.best){
       e.preventDefault();e.stopImmediatePropagation();
       win.open(mobileMapUrl(mobileGps.best.coords),'_blank','noopener');
