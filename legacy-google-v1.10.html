@@ -2378,6 +2378,39 @@
     return null;
   }
 
+  function addMissingCustomerLocation(customer){
+    const customerId=clean(customer?.customerId);
+    if(!customerId)return;
+    if(customerStoredMapUrl(customer))return;
+    if(typeof navigator!=='undefined'&&navigator.onLine===false){
+      alert('Adding a customer GPS location requires an internet connection.');
+      return;
+    }
+
+    // Reuse Sales Support > Add Customer, with the permanent ID of this existing customer.
+    try{
+      if(window.parent!==window&&window.parent.BBAddCustomer?.open){
+        const opened=window.parent.BBAddCustomer.open(true,{mode:'location',customerId});
+        if(opened!==false)return;
+      }
+    }catch(_){}
+
+    // Mobile route controller opens the same existing Add Customer screen.
+    try{
+      sessionStorage.setItem('BB_SALES_CUSTOMER_LOCATION_TARGET_V1',JSON.stringify({customerId,at:Date.now()}));
+      if(window.parent!==window&&window.parent.BBMobile?.open){
+        const opened=window.parent.BBMobile.open('sales-support-add-customer',true);
+        if(opened!==false)return;
+      }
+    }catch(_){}
+
+    try{sessionStorage.removeItem('BB_SALES_CUSTOMER_LOCATION_TARGET_V1')}catch(_){}
+    const url=new URL('add-customer.html',location.href);
+    url.searchParams.set('mode','location');
+    url.searchParams.set('customerId',customerId);
+    window.location.assign(url.href);
+  }
+
   function mapUrl(customer){
     if(!customer) return "";
     const storedMap = customerStoredMapUrl(customer);
@@ -4200,6 +4233,7 @@
           <div class="card-actions">
             ${customer.phone ? `<a class="btn ghost small" style="text-decoration:none" href="tel:${esc(customer.phone)}">📞 Call</a>` : ""}
             ${url ? `<button class="btn ghost small map-customer" type="button">📍 Google Maps</button>` : ""}
+            ${!customerStoredMapUrl(customer) && customer.customerId ? `<button class="btn ghost small add-location-customer" type="button">📍 Add Location</button>` : ""}
             <button class="btn secondary small show-prices" type="button">💲 Product Price</button>
             <button class="btn primary small use-calculator" type="button">🧮 Calculator</button>
           </div>
@@ -4221,6 +4255,7 @@
         const url = mapUrl(customer);
         if(url) window.open(url, "_blank", "noopener");
       });
+      card.querySelector(".add-location-customer")?.addEventListener("click", () => addMissingCustomerLocation(customer));
 
       card.querySelector(".show-prices").addEventListener("click", async () => {
         const panel = card.querySelector(".price-panel");
