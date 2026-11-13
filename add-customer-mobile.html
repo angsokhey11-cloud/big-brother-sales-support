@@ -103,7 +103,7 @@ function compactCopy(doc){
     obs.observe(sync,{childList:true,subtree:true,characterData:true});
     if(String(sync.textContent||'').trim()==='◎ Sync Current Device Location')sync.textContent='◎ Sync Device GPS';
   }
-  const clear=doc.getElementById('clearBtn');if(clear)clear.textContent='Clear';
+  const clear=doc.getElementById('clearBtn');if(clear)clear.textContent=frame.contentWindow.BBAddCustomerLocationMode?'Reset GPS':'Clear';
 }
 
 
