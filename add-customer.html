@@ -99,7 +99,7 @@
   <div class="footer">BIG BROTHER Accounting System · Sales Support · Add Customer</div>
 </div>
 
-<script src="add-customer-adapter.js?v=20260914-1"></script>
+<script src="add-customer-adapter.js?v=20261113-add-location1"></script>
 <script>
 (function(){
 'use strict';
@@ -110,6 +110,23 @@ let bestPosition=null;
 let watchId=null;
 let gpsStopTimer=null;
 let syncing=false;
+const locationParams=new URLSearchParams(window.location.search);
+const LOCATION_TARGET_KEY='BB_SALES_CUSTOMER_LOCATION_TARGET_V1';
+function consumeLocationTarget(){
+  if(locationParams.get('mode')==='location')return clean(locationParams.get('customerId'));
+  try{
+    const raw=sessionStorage.getItem(LOCATION_TARGET_KEY);
+    sessionStorage.removeItem(LOCATION_TARGET_KEY);
+    const item=JSON.parse(raw||'null');
+    if(item&&Number(item.at)>Date.now()-120000&&Number(item.at)<=Date.now()+5000){
+      return clean(item.customerId);
+    }
+  }catch(_){}
+  return '';
+}
+const targetCustomerId=consumeLocationTarget();
+let targetCustomer=null;
+let locationSaved=false;
 
 function showMessage(text,type='error'){
   const el=$('message');
@@ -184,13 +201,83 @@ function renderBootstrap(){
   if(rows.length===1)sel.value=clean(rows[0].locationCode);
   if(!rows.length){sel.innerHTML='<option value="">No assigned location</option>';$('saveBtn').disabled=true;showMessage('No active sales location is assigned to this account.');}
 }
+async function prepareLocationUpdate(){
+  if(!targetCustomerId)return;
+  const save=$('saveBtn');
+  save.disabled=true;
+  $('clearBtn').textContent='Reset GPS';
+  $('saveBtn').textContent='✓ Save Location';
+  const heading=document.querySelector('.hero h1');
+  if(heading)heading.textContent='📍 Add Customer Location';
+  const subtitle=document.querySelector('.hero p');
+  if(subtitle)subtitle.textContent='Use the existing customer record. Sync device GPS to add the missing delivery map location. Customer identity and selling prices will not change.';
+  try{
+    const result=await window.BBAddCustomerAdapter.getLocationTarget(targetCustomerId);
+    if(!result?.success||!result.customer)throw new Error('Customer details could not be loaded.');
+    const customer=result.customer;
+    targetCustomer=customer;
+    $('customerName').value=clean(customer.name);
+    $('phone').value=clean(customer.phone);
+    $('address').value=clean(customer.address);
+    $('locationCode').value=clean(customer.locationCode);
+    $('deliveryNote').value=clean(customer.deliveryLocationNote);
+    for(const id of ['customerName','phone','address'])$(id).readOnly=true;
+    $('locationCode').disabled=true;
+    $('profile').textContent='Updating saved GPS for '+clean(customer.customerId)+' · '+clean(customer.name)+' · '+clean(customer.locationCode);
+    const title=document.querySelector('.card-head strong');
+    if(title)title.textContent='Existing Customer · '+clean(customer.customerId);
+    if(customer.hasSavedLocation){
+      showMessage('This customer already has a saved map location. Refresh Your Customer to view it.','error');
+      $('syncBtn').disabled=true;
+      return;
+    }
+    save.disabled=false;
+    showMessage('Existing customer '+clean(customer.customerId)+' selected. Sync the location at the customer site before saving.','success');
+  }catch(error){
+    $('syncBtn').disabled=true;
+    showMessage(error?.message||String(error));
+  }
+}
 function clearForm(keepLocation=true){
+  if(targetCustomerId){resetGps();$('result').classList.remove('show');hideMessage();return}
   $('customerName').value='';$('phone').value='';$('address').value='';$('deliveryNote').value='';
   if(!keepLocation)$('locationCode').value='';
   resetGps();$('result').classList.remove('show');hideMessage();$('customerName').focus();
 }
 async function saveCustomer(){
   hideMessage();$('result').classList.remove('show');
+  if(targetCustomerId){
+    if(!targetCustomer||locationSaved)return showMessage('Customer location update is not available.');
+    if(syncing)return showMessage('GPS is still synchronizing. Finish the location sync first.');
+    const c=bestPosition?.coords;
+    if(!c)return showMessage('Sync Current Device Location before saving.');
+    if(Number(c.accuracy)>50)return showMessage('GPS accuracy must be within 50 meters. Move nearer the customer and sync again.');
+    const btn=$('saveBtn');btn.disabled=true;btn.textContent='Saving location…';
+    try{
+      const payload={
+        customerId:targetCustomer.customerId,
+        latitude:Number(c.latitude).toFixed(7),
+        longitude:Number(c.longitude).toFixed(7),
+        gpsAccuracyMeters:Math.round(Number(c.accuracy)||0),
+        deliveryLocationNote:clean($('deliveryNote').value)
+      };
+      const result=await window.BBAddCustomerAdapter.updateLocation(payload);
+      if(!result?.success||!result.customer)throw new Error('Customer location update failed.');
+      const updated=result.customer;
+      locationSaved=true;
+      $('resultId').textContent=updated.customerId||targetCustomer.customerId;
+      $('resultName').textContent=updated.name||targetCustomer.name;
+      $('resultLocation').textContent=updated.locationCode||targetCustomer.locationCode;
+      $('resultGps').textContent=String(updated.latitude)+', '+String(updated.longitude);
+      $('result').querySelector('h3').textContent='Customer location saved ✓';
+      $('result').classList.add('show');
+      showMessage('GPS location saved for existing customer '+updated.customerId+'. No duplicate customer was created.','success');
+      try{localStorage.setItem('BB_SALES_CUSTOMER_LOCATION_CHANGED_V1',JSON.stringify({customerId:updated.customerId,at:Date.now()}))}catch(_){}
+      try{window.parent?.postMessage({type:'BB_SALES_CUSTOMER_LOCATION_UPDATED',customerId:updated.customerId},location.origin)}catch(_){}
+    }catch(error){showMessage(error?.message||String(error));}
+    finally{btn.disabled=locationSaved;btn.textContent=locationSaved?'✓ Location Saved':'✓ Save Location';}
+    return;
+  }
   const name=clean($('customerName').value);const locationCode=clean($('locationCode').value);
   if(!name)return showMessage('Customer Name is required.');
   if(!locationCode)return showMessage('Please select one of your assigned locations.');
@@ -225,6 +312,7 @@ async function init(){
     await window.BBAddCustomerAdapter.ensureSession();
     bootstrap=await window.BBAddCustomerAdapter.bootstrap();
     renderBootstrap();
+    if(targetCustomerId)await prepareLocationUpdate();
   }catch(e){showMessage(e?.message||String(e));$('saveBtn').disabled=true;$('syncBtn').disabled=true;}
 }
 $('syncBtn').addEventListener('click',syncGps);$('resetGpsBtn').addEventListener('click',resetGps);$('openMapBtn').addEventListener('click',()=>{if(bestPosition){const c=bestPosition.coords;window.open(mapUrl(c.latitude,c.longitude),'_blank','noopener')}});$('saveBtn').addEventListener('click',saveCustomer);$('clearBtn').addEventListener('click',()=>clearForm(false));window.addEventListener('beforeunload',()=>stopGps(false));init();
