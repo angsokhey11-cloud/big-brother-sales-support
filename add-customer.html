@@ -272,7 +272,14 @@ async function saveCustomer(){
       $('result').querySelector('h3').textContent='Customer location saved ✓';
       $('result').classList.add('show');
       showMessage('GPS location saved for existing customer '+updated.customerId+'. No duplicate customer was created.','success');
-      try{localStorage.setItem('BB_SALES_CUSTOMER_LOCATION_CHANGED_V1',JSON.stringify({customerId:updated.customerId,at:Date.now()}))}catch(_){}
+      try{
+        // The next visit to Your Customer must not show the previous cached map status.
+        for(let i=localStorage.length-1;i>=0;i--){
+          const key=localStorage.key(i)||'';
+          if(key.startsWith('bb_sales_support_customers_v1_'))localStorage.removeItem(key);
+        }
+        localStorage.setItem('BB_SALES_CUSTOMER_LOCATION_CHANGED_V1',JSON.stringify({customerId:updated.customerId,at:Date.now()}));
+      }catch(_){}
       try{window.parent?.postMessage({type:'BB_SALES_CUSTOMER_LOCATION_UPDATED',customerId:updated.customerId},location.origin)}catch(_){}
     }catch(error){showMessage(error?.message||String(error));}
     finally{btn.disabled=locationSaved;btn.textContent=locationSaved?'✓ Location Saved':'✓ Save Location';}
