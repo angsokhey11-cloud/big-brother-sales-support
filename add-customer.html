@@ -248,8 +248,8 @@ async function saveCustomer(){
   hideMessage();$('result').classList.remove('show');
   if(targetCustomerId){
     if(!targetCustomer||locationSaved)return showMessage('Customer location update is not available.');
-    if(syncing)return showMessage('GPS is still synchronizing. Finish the location sync first.');
-    const c=bestPosition?.coords;
+    if(syncing||window.BBAddCustomerMobileGps?.isSyncing?.())return showMessage('GPS is still synchronizing. Finish the location sync first.');
+    const c=bestPosition?.coords||window.BBAddCustomerMobileGps?.getCoords?.();
     if(!c)return showMessage('Sync Current Device Location before saving.');
     if(Number(c.accuracy)>50)return showMessage('GPS accuracy must be within 50 meters. Move nearer the customer and sync again.');
     const btn=$('saveBtn');btn.disabled=true;btn.textContent='Saving location…';
